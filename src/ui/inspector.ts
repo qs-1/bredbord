@@ -577,7 +577,6 @@ export class Inspector {
         }
         return '';
       case 'button': {
-        card.note('While it runs, click it on the board to press it. Shift-click keeps it held down.');
         if (!part || !live) return '';
         const held = checkbox(sim.isHeld(part.id), 'Held down', (on) => (on ? sim.hold(part.id) : sim.unhold(part.id)));
         // Kept in step with the button, which a click on the board also lets go of.
