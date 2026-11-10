@@ -1048,7 +1048,9 @@ function pinList(
     const d = el('div', side);
     const lv = el('span', 'lv');
     lv.hidden = true;
-    d.append(el('b', '', names[i]), el('i', '', String(i + 1)), lv);
+    // Numbers in a column with two-digit ones get a leading 0, so the names line up.
+    const wide = side === 'r' ? n >= 10 : half >= 10;
+    d.append(el('b', '', names[i]), el('i', '', String(i + 1).padStart(wide ? 2 : 1, '0')), lv);
     d.title = names[i];
     d.style.gridRow = String(row + 1);
     marks[i] = lv;
