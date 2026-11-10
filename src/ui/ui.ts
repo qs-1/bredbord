@@ -74,7 +74,7 @@ export class UI {
     this.graphicsPreviews();
 
     tools.snapping = readFlag('snapping', true);
-    tools.pinNames = readFlag('pinNames', true);
+    tools.pinNames = readFlag('pinNames', false);
     tools.magnifier = readFlag('magnifier', true);
     this.tagLayer = new TagLayer($('#tags'), view);
     this.library = new Library(tools);

@@ -290,7 +290,7 @@ export class Tools {
   /** Labels over the view: + and − on a polarised part being placed or moved, pin names of the chip pointed at. */
   tags: ScreenTag[] = [];
   /** Show the pin names of the chip under the pointer, after a short pause on it (a setting: Hide pin names). */
-  pinNames = true;
+  pinNames = false;
   /** The part whose pin names are waiting to show, and when the pointer came onto it. */
   private pinWait: { id: Id; since: number } | null = null;
   private pinTimer = 0;
