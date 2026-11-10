@@ -1,0 +1,6 @@
+dist
+.cache
+docs
+package-lock.json
+# Hand-written design mockups, one file each; not part of the app.
+mockups/

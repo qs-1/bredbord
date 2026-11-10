@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Bredbord</title>
+    <meta name="description" content="A 3D breadboard simulator in the browser." />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Crect x='1' y='0' width='14' height='1' fill='%23c9c3b6'/%3E%3Crect x='0' y='1' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='1' y='1' width='14' height='1' fill='%23ffffff'/%3E%3Crect x='15' y='1' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='0' y='2' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='1' y='2' width='1' height='1' fill='%23ffffff'/%3E%3Crect x='2' y='2' width='12' height='1' fill='%23e2362a'/%3E%3Crect x='14' y='2' width='1' height='1' fill='%23ffffff'/%3E%3Crect x='15' y='2' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='0' y='3' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='1' y='3' width='14' height='1' fill='%23ffffff'/%3E%3Crect x='15' y='3' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='0' y='4' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='1' y='4' width='3' height='1' fill='%23ffffff'/%3E%3Crect x='4' y='4' width='7' height='1' fill='%231f1d1a'/%3E%3Crect x='11' y='4' width='4' height='1' fill='%23ffffff'/%3E%3Crect x='15' y='4' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='0' y='5' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='1' y='5' width='3' height='1' fill='%23ffffff'/%3E%3Crect x='4' y='5' width='2' height='1' fill='%231f1d1a'/%3E%3Crect x='6' y='5' width='4' height='1' fill='%23ffffff'/%3E%3Crect x='10' y='5' width='2' height='1' fill='%231f1d1a'/%3E%3Crect x='12' y='5' width='3' height='1' fill='%23ffffff'/%3E%3Crect x='15' y='5' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='0' y='6' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='1' y='6' width='3' height='1' fill='%23ffffff'/%3E%3Crect x='4' y='6' width='2' height='1' fill='%231f1d1a'/%3E%3Crect x='6' y='6' width='4' height='1' fill='%23ffffff'/%3E%3Crect x='10' y='6' width='2' height='1' fill='%231f1d1a'/%3E%3Crect x='12' y='6' width='3' height='1' fill='%23ffffff'/%3E%3Crect x='15' y='6' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='0' y='7' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='1' y='7' width='3' height='1' fill='%23ffffff'/%3E%3Crect x='4' y='7' width='7' height='1' fill='%231f1d1a'/%3E%3Crect x='11' y='7' width='4' height='1' fill='%23ffffff'/%3E%3Crect x='15' y='7' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='0' y='8' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='1' y='8' width='3' height='1' fill='%23ffffff'/%3E%3Crect x='4' y='8' width='2' height='1' fill='%231f1d1a'/%3E%3Crect x='6' y='8' width='4' height='1' fill='%23ffffff'/%3E%3Crect x='10' y='8' width='2' height='1' fill='%231f1d1a'/%3E%3Crect x='12' y='8' width='3' height='1' fill='%23ffffff'/%3E%3Crect x='15' y='8' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='0' y='9' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='1' y='9' width='3' height='1' fill='%23ffffff'/%3E%3Crect x='4' y='9' width='2' height='1' fill='%231f1d1a'/%3E%3Crect x='6' y='9' width='4' height='1' fill='%23ffffff'/%3E%3Crect x='10' y='9' width='2' height='1' fill='%231f1d1a'/%3E%3Crect x='12' y='9' width='3' height='1' fill='%23ffffff'/%3E%3Crect x='15' y='9' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='0' y='10' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='1' y='10' width='3' height='1' fill='%23ffffff'/%3E%3Crect x='4' y='10' width='2' height='1' fill='%231f1d1a'/%3E%3Crect x='6' y='10' width='4' height='1' fill='%23ffffff'/%3E%3Crect x='10' y='10' width='2' height='1' fill='%231f1d1a'/%3E%3Crect x='12' y='10' width='3' height='1' fill='%23ffffff'/%3E%3Crect x='15' y='10' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='0' y='11' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='1' y='11' width='3' height='1' fill='%23ffffff'/%3E%3Crect x='4' y='11' width='7' height='1' fill='%231f1d1a'/%3E%3Crect x='11' y='11' width='4' height='1' fill='%23ffffff'/%3E%3Crect x='15' y='11' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='0' y='12' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='1' y='12' width='14' height='1' fill='%23ffffff'/%3E%3Crect x='15' y='12' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='0' y='13' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='1' y='13' width='1' height='1' fill='%23ffffff'/%3E%3Crect x='2' y='13' width='12' height='1' fill='%232a62d8'/%3E%3Crect x='14' y='13' width='1' height='1' fill='%23ffffff'/%3E%3Crect x='15' y='13' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='0' y='14' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='1' y='14' width='14' height='1' fill='%23ffffff'/%3E%3Crect x='15' y='14' width='1' height='1' fill='%23c9c3b6'/%3E%3Crect x='1' y='15' width='14' height='1' fill='%23c9c3b6'/%3E%3C/svg%3E"
+    />
+    <script>
+      // No transitions until the page is styled and showing (loading.ts takes this off), so menus
+      // don't fade out on the way in.
+      document.documentElement.classList.add('preload');
+      // A phone (a small touch screen): the phone layout, from the first paint.
+      if (matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600)
+        document.documentElement.classList.add('phone');
+      // Restore the parts panel's folded state before the first paint, so nothing jumps.
+      try {
+        if (localStorage.getItem('breadboard-sim/panel') === 'closed')
+          document.documentElement.classList.add('panel-closed');
+      } catch {}
+    </script>
+  </head>
+  <body>
+    <div class="app" id="app">
+      <!-- Bar 1: the design and running it -->
+      <header class="bar1">
+        <a class="home" id="home" href="/" data-tip="Home page"
+          ><svg class="logo" id="logo" role="img" aria-label="Bredbord"></svg
+        ></a>
+        <div class="name">
+          <input id="name" aria-label="Circuit name" spellcheck="false" autocomplete="off" data-tip="Rename" />
+        </div>
+        <div class="grow"></div>
+        <div class="grp run" role="group" aria-label="Running">
+          <div class="mw">
+            <button class="clock" id="clock" data-menu="speed" aria-expanded="false" data-tip="Circuit time and speed">
+              <span class="time" id="time">0.000 s</span><span class="speed" id="speed-l">1×</span
+              ><span class="ic sm" data-ic="chev"></span>
+            </button>
+            <div class="menu" id="menu-speed" style="min-width: 200px">
+              <div class="mlabel">Speed</div>
+              <div class="mnote" id="behind" hidden></div>
+              <button class="mi chk" role="menuitemradio" aria-checked="true" data-speed="1" data-short="1×">
+                <span class="ic sm" data-ic="check"></span>Real time<kbd>1×</kbd>
+              </button>
+              <button class="mi chk" role="menuitemradio" aria-checked="false" data-speed="0.25" data-short="¼×">
+                <span class="ic sm" data-ic="check"></span>Quarter speed<kbd>¼×</kbd>
+              </button>
+              <button class="mi chk" role="menuitemradio" aria-checked="false" data-speed="0.1" data-short="⅒×">
+                <span class="ic sm" data-ic="check"></span>Tenth speed<kbd>⅒×</kbd>
+              </button>
+              <button class="mi chk" role="menuitemradio" aria-checked="false" data-speed="0.01" data-short="1/100×">
+                <span class="ic sm" data-ic="check"></span>Hundredth speed<kbd>1/100×</kbd>
+              </button>
+              <button class="mi chk" role="menuitemradio" aria-checked="false" data-speed="0.001" data-short="1/1000×">
+                <span class="ic sm" data-ic="check"></span>Thousandth speed<kbd>1/1000×</kbd>
+              </button>
+            </div>
+          </div>
+          <button class="w" id="pause" data-tip="Pause" data-key="K" disabled>
+            <span class="ic" data-ic="pause"></span>Pause
+          </button>
+          <button class="w" id="step" data-tip="Step forward while paused" data-key="." disabled>
+            <span class="ic" data-ic="step"></span>Step
+          </button>
+        </div>
+        <button class="power" id="power" data-tip="Turn the circuit on" data-key="P">
+          <span class="ic" data-ic="power"></span><span id="power-l">Power on</span>
+        </button>
+        <span class="vsep"></span>
+        <div class="mw">
+          <button
+            class="ib"
+            data-menu="main"
+            data-tip="Menu"
+            aria-label="Menu"
+            aria-haspopup="menu"
+            aria-expanded="false"
+          >
+            <span class="ic" data-ic="menu"></span>
+          </button>
+          <div class="menu right" id="menu-main" role="menu">
+            <button class="mi" role="menuitem" data-file="new">
+              <span class="ic sm" data-ic="plus"></span>New circuit
+            </button>
+            <button class="mi" role="menuitem" data-file="open">
+              <span class="ic sm" data-ic="open"></span>Open file<kbd>Ctrl O</kbd>
+            </button>
+            <button class="mi" role="menuitem" data-file="save">
+              <span class="ic sm" data-ic="save"></span>Save to file<kbd>Ctrl S</kbd>
+            </button>
+            <div class="sub">
+              <button class="mi" role="menuitem" aria-haspopup="menu">
+                <span class="ic sm" data-ic="book"></span>Examples<span class="ic sm end" data-ic="chevl"></span>
+              </button>
+              <div class="menu" role="menu" id="menu-examples"></div>
+            </div>
+            <div class="msep"></div>
+            <div class="sub big">
+              <button class="mi" role="menuitem" aria-haspopup="dialog">
+                <span class="ic sm" data-ic="sliders"></span>Settings<span class="ic sm end" data-ic="chevl"></span>
+              </button>
+              <div class="menu pop settings" role="dialog" aria-label="Settings">
+                <h4>Settings</h4>
+                <div class="field">
+                  <div class="flabel" id="gfx-l">Graphics</div>
+                  <div class="choices" role="radiogroup" aria-labelledby="gfx-l">
+                    <button class="choice on" role="radio" aria-checked="true" data-gfx="high">
+                      <svg id="gfx-high" viewBox="0 0 120 48" aria-hidden="true"></svg><b>High</b
+                      ><span>Smooth wires and soft shadows</span>
+                    </button>
+                    <button class="choice" role="radio" aria-checked="false" data-gfx="low">
+                      <svg id="gfx-low" viewBox="0 0 120 48" shape-rendering="crispEdges" aria-hidden="true"></svg
+                      ><b>Low</b><span>Simpler drawing for older computers</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="msep" style="margin: 16px 0 12px"></div>
+                <div class="field">
+                  <div class="flabel">Chips</div>
+                  <button class="cb" role="checkbox" aria-checked="false" data-check="names">
+                    <i></i>Hide pin names
+                  </button>
+                </div>
+                <div class="field touch-only">
+                  <div class="flabel">Touch</div>
+                  <button class="cb" role="checkbox" aria-checked="true" id="set-magnifier">
+                    <i></i>Magnifier while placing
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="sub big" id="sub-keys">
+              <button class="mi" role="menuitem" aria-haspopup="dialog">
+                <span class="ic sm" data-ic="help"></span>Shortcuts<span class="ic sm end" data-ic="chevl"></span>
+              </button>
+              <div class="menu pop help" role="dialog" aria-label="Shortcuts">
+                <h4>Shortcuts</h4>
+                <div class="cols">
+                  <div>
+                    <h5>Moving around</h5>
+                    <dl class="keys">
+                      <dt>Right-drag</dt>
+                      <dd>Orbit</dd>
+                      <dt>Drag the desk</dt>
+                      <dd>Pan</dd>
+                      <dt>Scroll</dt>
+                      <dd>Zoom</dd>
+                      <dt><span class="keycap">T</span></dt>
+                      <dd>Top view</dd>
+                      <dt><span class="keycap">F</span></dt>
+                      <dd>Zoom to selection</dd>
+                      <dt><span class="keycap">Home</span></dt>
+                      <dd>Fit</dd>
+                    </dl>
+                    <h5>Running</h5>
+                    <dl class="keys">
+                      <dt><span class="keycap">P</span></dt>
+                      <dd>Power on or off</dd>
+                      <dt><span class="keycap">K</span></dt>
+                      <dd>Pause</dd>
+                      <dt><span class="keycap">.</span></dt>
+                      <dd>Step while paused</dd>
+                      <dt>Shift-click a button</dt>
+                      <dd>Hold it down</dd>
+                      <dt>Drag a knob</dt>
+                      <dd>Turn it</dd>
+                    </dl>
+                  </div>
+                  <div>
+                    <h5>Building</h5>
+                    <dl class="keys">
+                      <dt><span class="keycap">W</span></dt>
+                      <dd>Wire tool (Esc to stop)</dd>
+                      <dt><span class="keycap">1</span> to <span class="keycap">8</span></dt>
+                      <dd>Wire colour</dd>
+                      <dt><span class="keycap">X</span></dt>
+                      <dd>Probe the hole you point at</dd>
+                      <dt><span class="keycap">R</span></dt>
+                      <dd>Rotate</dd>
+                      <dt><span class="keycap">←</span> <span class="keycap">→</span></dt>
+                      <dd>Nudge one hole</dd>
+                      <dt>Alt-drag</dt>
+                      <dd>Copy while moving</dd>
+                      <dt>Shift-drag</dt>
+                      <dd>Select several</dd>
+                      <dt><span class="keycap">Ctrl</span> <span class="keycap">C</span></dt>
+                      <dd>Copy</dd>
+                      <dt><span class="keycap">Ctrl</span> <span class="keycap">V</span></dt>
+                      <dd>Paste</dd>
+                      <dt><span class="keycap">Ctrl</span> <span class="keycap">D</span></dt>
+                      <dd>Duplicate</dd>
+                      <dt><span class="keycap">Del</span></dt>
+                      <dd>Delete</dd>
+                      <dt><span class="keycap">Ctrl</span> <span class="keycap">Z</span></dt>
+                      <dd>Undo</dd>
+                      <dt><span class="keycap">G</span></dt>
+                      <dd>Snap on or off</dd>
+                      <dt><span class="keycap">Esc</span></dt>
+                      <dd>Cancel</dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Bar 2: the tools -->
+      <nav class="bar2" aria-label="Tools">
+        <div class="grp phone-only">
+          <button class="w" id="t-parts" aria-pressed="false"><span class="ic" data-ic="chip"></span>Parts</button>
+        </div>
+        <div class="grp">
+          <button class="w" id="t-wire" aria-pressed="false" data-tip="Wire" data-key="W">
+            <span class="ic" data-ic="wire"></span>Wire
+          </button>
+          <div class="mw">
+            <button
+              class="wc"
+              data-menu="wire"
+              data-tip="Wire colours"
+              data-key="1–8"
+              aria-label="Wire colours"
+              aria-expanded="false"
+            >
+              <span class="ic" id="wire-ic"></span><span class="ic sm" data-ic="chev"></span>
+            </button>
+            <div class="menu" id="menu-wire" style="min-width: 0">
+              <div class="swatches" id="swatches"></div>
+              <div class="msep"></div>
+              <button class="mi chk" role="menuitemcheckbox" data-check="fade" data-keep aria-checked="false">
+                <span class="ic sm" data-ic="check"></span>Fade wires
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="grp touch-only">
+          <button class="w" id="t-select" aria-pressed="false" data-tip="Select several">
+            <span class="ic" data-ic="marquee"></span>Select
+          </button>
+        </div>
+        <div class="grp no-phone">
+          <button class="w" id="t-rotate" data-tip="Rotate" data-key="R" disabled>
+            <span class="ic" data-ic="rotate"></span>Rotate
+          </button>
+          <button class="w" id="t-delete" data-tip="Delete" data-key="Del" disabled>
+            <span class="ic" data-ic="trash"></span>Delete
+          </button>
+        </div>
+        <div class="grp">
+          <button class="w" id="t-undo" data-tip="Undo" data-key="Ctrl Z" disabled>
+            <span class="ic" data-ic="undo"></span>Undo
+          </button>
+          <button class="w" id="t-redo" data-tip="Redo" data-key="Ctrl Y" disabled>
+            <span class="ic" data-ic="redo"></span>Redo
+          </button>
+        </div>
+        <div class="grp no-phone">
+          <button class="w on" id="snap" aria-pressed="true" data-tip="Enable snapping" data-key="G">
+            <span class="ic" data-ic="magnet"></span>Snap
+          </button>
+        </div>
+        <div class="grow no-phone"></div>
+        <div class="grp no-phone">
+          <button class="w" id="code" data-tip="Code editor"><span class="ic" data-ic="code"></span>Code</button>
+        </div>
+        <div class="grp phone-only">
+          <div class="mw">
+            <button class="w" data-menu="more" aria-haspopup="menu" aria-expanded="false">
+              <span class="ic" data-ic="more"></span>More
+            </button>
+            <div class="menu right" id="menu-more" role="menu">
+              <button class="mi" role="menuitem" data-more="pause">
+                <span class="ic sm" data-ic="pause"></span>Pause
+              </button>
+              <button class="mi" role="menuitem" data-more="step">
+                <span class="ic sm" data-ic="step"></span>Step
+              </button>
+              <div class="msep"></div>
+              <button class="mi chk" role="menuitemcheckbox" data-more="snap" aria-checked="true">
+                <span class="ic sm" data-ic="check"></span>Snap boards into line
+              </button>
+              <button class="mi chk" role="menuitemcheckbox" data-more="set-magnifier" aria-checked="true">
+                <span class="ic sm" data-ic="check"></span>Magnifier
+              </button>
+              <button class="mi" role="menuitem" data-more="code">
+                <span class="ic sm" data-ic="code"></span>Code editor
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <main class="work" id="work">
+        <div class="deskcol">
+          <section class="desk" id="desk" aria-label="Desk">
+            <canvas id="viewport" tabindex="-1"></canvas>
+            <p class="empty" id="empty" hidden>
+              Pick a breadboard from the parts list, or
+              <span class="mw"
+                ><button id="open-examples" data-menu="ex" aria-haspopup="menu" aria-expanded="false">
+                  open an example</button
+                ><span class="menu" id="menu-ex" role="menu"></span
+              ></span>
+            </p>
+
+            <div class="camera">
+              <div class="grp zoom" role="group" aria-label="View">
+                <button class="on" data-view="3d" data-tip="3D view" aria-label="3D view" aria-pressed="true">
+                  <span class="ic" data-ic="cube"></span>
+                </button>
+                <button data-view="top" data-tip="Top view" data-key="T" aria-label="Top view" aria-pressed="false">
+                  <span class="ic" data-ic="topview"></span>
+                </button>
+              </div>
+              <div class="grp zoom">
+                <button id="fit" data-tip="Fit" data-key="Home" aria-label="Fit">
+                  <span class="ic" data-ic="fit"></span>
+                </button>
+                <button id="zoom-in" data-tip="Zoom in" aria-label="Zoom in">
+                  <span class="ic" data-ic="plus"></span>
+                </button>
+                <button id="zoom-out" data-tip="Zoom out" aria-label="Zoom out">
+                  <span class="ic" data-ic="minus"></span>
+                </button>
+              </div>
+            </div>
+
+            <div class="overlay" id="tags" aria-hidden="true"></div>
+            <div class="hold-layer" id="hold-layer"></div>
+            <div class="card" id="card" role="dialog" aria-label="Selected part"></div>
+            <div class="grp selbar" id="selbar" role="toolbar" aria-label="Selection" hidden>
+              <button class="w" id="sb-rotate"><span class="ic" data-ic="rotate"></span>Rotate</button>
+              <button class="w" id="sb-duplicate"><span class="ic" data-ic="duplicate"></span>Duplicate</button>
+              <button class="w" id="sb-delete"><span class="ic" data-ic="trash"></span>Delete</button>
+            </div>
+            <div class="toast" id="toast" role="status" aria-live="polite"></div>
+            <div class="hint" id="hint">
+              <span id="hint-t"></span><button id="hint-x">Cancel <kbd>Esc</kbd></button>
+            </div>
+            <div class="hcard" id="hcard" role="tooltip"></div>
+            <div class="probs mw" id="probs" hidden>
+              <button data-menu="probs" aria-expanded="false">
+                <span class="ic" data-ic="warn"></span><span id="probs-n"></span>
+              </button>
+              <div class="menu up" id="menu-probs" role="menu"></div>
+            </div>
+            <div class="perf" id="perf" hidden></div>
+          </section>
+
+          <section class="dock" id="dock" aria-label="Probes and bus trace" hidden></section>
+        </div>
+
+        <aside class="parts" id="parts" aria-label="Parts">
+          <button class="fold" id="fold" data-tip="Hide parts" aria-label="Hide parts">
+            <span class="ic sm" data-ic="chevr"></span>
+          </button>
+          <div class="phead">
+            <div class="mw">
+              <button class="catbtn" data-menu="cat" aria-expanded="false">
+                <span id="cat-l">All parts</span><span class="ic sm" data-ic="chev"></span>
+              </button>
+              <div class="menu" id="menu-cat"></div>
+            </div>
+            <label class="search" data-tip="Search parts" data-key="/"
+              ><span class="ic sm" data-ic="search"></span
+              ><input id="q" placeholder="Search" aria-label="Search parts" autocomplete="off" spellcheck="false"
+            /></label>
+          </div>
+          <div class="plist" id="plist"></div>
+        </aside>
+
+        <aside class="codep" id="codep" aria-label="Code"></aside>
+      </main>
+    </div>
+
+    <div
+      class="modal"
+      id="phone"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="phone-t"
+      aria-describedby="phone-p"
+    >
+      <div class="dlg">
+        <h3 id="phone-t">Best on a computer</h3>
+        <p id="phone-p">It works on phones and tablets too, but not everything does yet.</p>
+        <div class="dlg-b"><span class="grow"></span><button class="primary">Continue</button></div>
+      </div>
+    </div>
+    <div class="modal" id="ask" role="alertdialog" aria-modal="true" aria-labelledby="ask-t" aria-describedby="ask-p">
+      <div class="dlg">
+        <h3 id="ask-t"></h3>
+        <p id="ask-p"></p>
+        <div class="dlg-b">
+          <button class="btn quiet" data-ask="drop">Don’t save</button><span class="grow"></span
+          ><button class="btn" data-ask="cancel">Cancel</button
+          ><button class="primary" data-ask="save">Save to file</button>
+        </div>
+      </div>
+    </div>
+    <div class="tip" id="tip"></div>
+    <div class="ghost" id="ghost"></div>
+    <input type="file" id="import-file" accept=".json,application/json" hidden />
+    <input type="file" id="rom-file" accept=".bin,.rom,.hex,application/octet-stream" hidden />
+
+    <!-- Loading: moved over the desk at start (see loading.ts); nothing shows if the desk is ready within a
+         third of a second, the words only after two -->
+    <div class="boot" id="boot" aria-live="polite">
+      <svg id="boot-sparks" shape-rendering="crispEdges" aria-label="Loading"></svg>
+      <span class="words" id="boot-words">Getting the desk ready</span>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

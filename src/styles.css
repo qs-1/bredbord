@@ -1,0 +1,2715 @@
+/*
+ * The workbench. A breadboard on a bench: quiet warm greys for everything around the desk, and the
+ * one bright thing on screen is the circuit itself. Light only. The red and blue rails appear only
+ * in the logo.
+ */
+@import './fonts.css';
+
+:root {
+  --ink: #1f1d1a;
+  --ink-2: #57524a;
+  --ink-3: #7b756b;
+  --line: rgba(31, 29, 26, 0.1);
+  --line-2: rgba(31, 29, 26, 0.2);
+  --bar: #fbfaf7;
+  --card: #ffffff;
+  --raised: #f0eee9;
+  --press: #e6e3dc;
+  --desk: #e9e7e1;
+  --r: 6px;
+  --r-card: 10px;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 8px 24px rgba(0, 0, 0, 0.07);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --font: 'Atkinson Hyperlegible Next', system-ui, sans-serif;
+  --mono: 'Atkinson Hyperlegible Mono', ui-monospace, monospace;
+  /* What's printed on the 3D parts. */
+  --font-label: 'Barlow Semi Condensed', sans-serif;
+  --font-mono: 'Sometype Mono', monospace;
+  /* Pixel art is drawn at a whole number of screen pixels per art pixel at every browser zoom.
+     --u is one art pixel at roughly 2x, --u1 at roughly 1x; px.ts sets both. */
+  --u: 2px;
+  --u1: 1px;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  height: 100%;
+}
+body {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bar);
+  color: var(--ink);
+  font: 400 13px/1.45 var(--font);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+svg {
+  display: block;
+}
+[hidden] {
+  display: none !important;
+}
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+kbd {
+  font: 400 11px/1 var(--mono);
+  color: var(--ink-3);
+}
+.mono {
+  font-family: var(--mono);
+}
+.mut {
+  color: var(--ink-3);
+}
+
+/* icons: 9 x 9 pixel art, one box size */
+.ic {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+.ic.sm {
+  width: 18px;
+  height: 18px;
+}
+.ic svg {
+  width: calc(9 * var(--u));
+  height: calc(9 * var(--u));
+  flex: none;
+}
+
+.app {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 48px 44px minmax(0, 1fr);
+  /* An iPad held upright is 768 wide. */
+  min-width: 760px;
+}
+
+/* ---------- bar 1: the design and running it ---------- */
+.bar1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 0 16px;
+  border-bottom: 1px solid var(--line);
+}
+.home {
+  display: flex;
+  flex: none;
+}
+.logo {
+  width: calc(45 * var(--u));
+  height: calc(11 * var(--u));
+  flex: none;
+}
+.vsep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--line);
+  margin: 0 4px 0 8px;
+  flex: none;
+}
+.name {
+  margin-left: 12px;
+}
+.name input {
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  padding: 4px 8px;
+  font-size: 14px;
+  font-weight: 500;
+  background: none;
+  outline: none;
+  max-width: 320px;
+  transition: border-color 0.15s var(--ease);
+}
+.name input:hover {
+  border-color: var(--line-2);
+}
+.name input:focus {
+  border-color: var(--ink);
+  background: var(--card);
+}
+.grow {
+  flex: 1;
+}
+
+/* joined button groups: the toolbar look */
+.grp {
+  display: inline-flex;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  background: var(--card);
+  flex: none;
+}
+/* round the end buttons instead of clipping the group, so menus inside it can open */
+.grp > :first-child,
+.grp > .mw:first-child > button {
+  border-top-left-radius: calc(var(--r) - 1px);
+  border-bottom-left-radius: calc(var(--r) - 1px);
+}
+.grp > :last-child,
+.grp > .mw:last-child > button {
+  border-top-right-radius: calc(var(--r) - 1px);
+  border-bottom-right-radius: calc(var(--r) - 1px);
+}
+.grp > button,
+.grp > .mw > button {
+  height: 30px;
+  min-width: 32px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--ink-2);
+  transition:
+    background-color 0.12s var(--ease),
+    color 0.12s var(--ease);
+}
+.grp > * + * {
+  border-left: 1px solid var(--line);
+}
+.grp > button:hover:not(:disabled),
+.grp > .mw > button:hover {
+  background: var(--raised);
+  color: var(--ink);
+}
+.grp > button:active:not(:disabled) {
+  background: var(--press);
+}
+.grp > button.on {
+  background: var(--raised);
+  color: var(--ink);
+  box-shadow: inset 0 1px 2px rgba(31, 29, 26, 0.12);
+}
+.grp > button:disabled {
+  color: rgba(31, 29, 26, 0.28);
+  cursor: default;
+}
+.grp .w {
+  padding: 0 10px 0 8px;
+}
+.grp .txt {
+  padding: 0 12px;
+}
+
+.ib {
+  height: 32px;
+  min-width: 32px;
+  border-radius: var(--r);
+  display: inline-grid;
+  place-items: center;
+  color: var(--ink-2);
+  transition:
+    background-color 0.12s var(--ease),
+    color 0.12s var(--ease);
+}
+.ib:hover {
+  background: var(--raised);
+  color: var(--ink);
+}
+
+/* ---------- bar 2: the tools ---------- */
+.bar2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+}
+.swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+  flex: none;
+}
+/* Fixed widths, so nothing on the bar moves when the power or the speed changes */
+.power {
+  width: 112px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  background: var(--card);
+  transition:
+    background-color 0.15s var(--ease),
+    color 0.15s var(--ease);
+}
+.power:hover {
+  background: var(--raised);
+}
+.power:active {
+  transform: scale(0.98);
+}
+.running .power {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+/* circuit time and speed in one button: the time, then the speed it runs at */
+.grp .clock {
+  height: 30px;
+  padding: 0 4px 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-3);
+  transition: background-color 0.12s var(--ease);
+}
+.grp .clock:hover,
+.grp .clock[aria-expanded='true'] {
+  background: var(--raised);
+}
+/* the time always has four digits, so its width never changes while it runs */
+.clock .time {
+  min-width: 46px;
+  text-align: left;
+}
+.running .clock .time {
+  color: var(--ink);
+}
+/* the speed only shows when it isn't real time */
+.clock .speed {
+  display: none;
+  color: var(--ink);
+  font-weight: 500;
+}
+.clock.slow .speed,
+.clock.behind .speed {
+  display: inline;
+}
+/* too busy to keep up: the speed it really runs at, muted */
+.clock.behind .speed {
+  color: var(--ink-3);
+  font-weight: 400;
+}
+.grp .wc {
+  padding: 0 4px 0 7px;
+  gap: 2px;
+}
+
+/* ---------- menus ---------- */
+.mw {
+  position: relative;
+  display: inline-flex;
+}
+.menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 220px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow);
+  padding: 4px;
+  z-index: 40;
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition:
+    opacity 0.16s var(--ease),
+    transform 0.16s var(--ease),
+    visibility 0s 0.16s;
+}
+.menu.open,
+.menu.open .sub.open > .menu {
+  visibility: visible;
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.16s var(--ease),
+    transform 0.16s var(--ease);
+}
+.menu.right {
+  left: auto;
+  right: 0;
+}
+.mi {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: calc(var(--r-card) - 4px);
+  text-align: left;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.mi:hover {
+  background: var(--raised);
+}
+.mi:disabled {
+  color: var(--ink-3);
+  cursor: default;
+  background: none;
+}
+.mi .ic {
+  color: var(--ink-3);
+}
+.mi kbd {
+  margin-left: auto;
+  padding-left: 24px;
+}
+.mi .end {
+  margin-left: auto;
+}
+.mi.cur::after {
+  content: '';
+  margin-left: auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+.msep {
+  height: 1px;
+  background: var(--line);
+  margin: 4px 6px;
+}
+.sub {
+  position: relative;
+}
+.sub > .menu {
+  top: -5px;
+  left: calc(100% - 2px);
+}
+.menu.right .sub > .menu {
+  left: auto;
+  right: calc(100% - 2px);
+}
+.sub.open > .mi {
+  background: var(--raised);
+}
+/* big flyouts (Settings, Shortcuts) line up with the top of the menu they come from */
+.sub.big {
+  position: static;
+}
+.menu.right .sub.big > .menu {
+  top: -1px;
+  right: calc(100% + 6px);
+}
+.mi kbd + .end {
+  margin-left: 0;
+  padding-left: 0;
+}
+.mi kbd:has(+ .end) {
+  padding-left: 24px;
+  margin-right: 2px;
+}
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(4, 36px);
+  gap: 2px;
+}
+.swb {
+  height: 36px;
+  border-radius: calc(var(--r-card) - 4px);
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+.swb:hover {
+  background: var(--raised);
+}
+.swb .swatch {
+  width: 20px;
+  height: 20px;
+}
+.swb small {
+  position: absolute;
+  right: 3px;
+  bottom: 2px;
+  font: 400 10px/1 var(--mono);
+  color: var(--ink-3);
+}
+.swb.on {
+  box-shadow: inset 0 0 0 1.5px var(--ink);
+}
+
+/* menu items with a tick: the tick column is kept even when unticked, so labels line up */
+.mi.chk .ic svg {
+  visibility: hidden;
+}
+.mi.chk[aria-checked='true'] .ic svg {
+  visibility: visible;
+}
+.mlabel {
+  padding: 8px 10px 4px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.mnote {
+  max-width: 220px;
+  padding: 0 10px 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-2);
+  white-space: normal;
+}
+
+/* popover panels: Settings and Shortcuts */
+.pop {
+  padding: 12px;
+  cursor: default;
+}
+.pop h4 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 500;
+}
+.pop .why {
+  display: block;
+  color: var(--ink-3);
+  font-size: 12px;
+  margin: -6px 0 0 24px;
+}
+.keycap {
+  display: inline-block;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border: 1px solid var(--line-2);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--card);
+  font: 400 11px/16px var(--mono);
+  color: var(--ink);
+  text-align: center;
+  vertical-align: middle;
+}
+.help {
+  width: 560px;
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+}
+.help .cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px 28px;
+}
+.help h5 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.keys {
+  display: grid;
+  grid-template-columns: 128px 1fr;
+  gap: 6px 12px;
+  align-items: center;
+  margin: 0 0 16px;
+}
+.keys dt {
+  white-space: nowrap;
+  color: var(--ink-2);
+}
+.keys dd {
+  margin: 0;
+}
+
+/* Settings: each setting a labelled row of choices, each choice showing what it looks like */
+.settings {
+  width: 320px;
+}
+.field {
+  display: grid;
+  gap: 8px;
+}
+.flabel {
+  color: var(--ink-2);
+}
+.choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.choice {
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  padding: 6px 6px 10px;
+  text-align: left;
+  background: var(--card);
+  transition:
+    border-color 0.12s var(--ease),
+    background-color 0.12s var(--ease);
+}
+.choice:hover {
+  background: var(--raised);
+}
+.choice.on {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+.choice svg {
+  width: 100%;
+  height: auto;
+  border-radius: calc(var(--r) - 2px);
+  background: var(--desk);
+  margin-bottom: 8px;
+}
+.choice b {
+  display: block;
+  font-weight: 500;
+  padding: 0 4px;
+}
+.choice span {
+  display: block;
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 16px;
+  padding: 0 4px;
+  margin-top: 2px;
+}
+
+/* ---------- work area ---------- */
+/* The desk always fills the whole work area. The parts panel, the Code panel and the dock float over
+   it, so opening, closing or resizing them never moves or resizes the view.
+   --pw: how much of the right side a panel covers; --dh: how tall the dock is. */
+.work {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+  --pw: 296px;
+  --dh: 0px;
+}
+.work > * {
+  min-height: 0;
+}
+.work.collapsed {
+  --pw: 0px;
+}
+.work.coding {
+  --pw: 480px;
+}
+.deskcol {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.desk {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--desk);
+}
+#viewport {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  outline: none;
+  touch-action: none;
+}
+.empty {
+  position: absolute;
+  left: 0;
+  right: var(--pw);
+  top: 44%;
+  margin: 0;
+  text-align: center;
+  color: var(--ink-2);
+  font-size: 14px;
+  z-index: 5;
+  pointer-events: none;
+  /* Follows the parts panel open and shut, gently rather than in one jump. */
+  transition:
+    opacity 0.15s,
+    right 0.25s var(--ease);
+}
+/* Fades in when it first shows. Only at the start, so it never overrides .faded below. */
+.empty:not([hidden]) {
+  animation: empty-in 0.5s var(--ease) 0.2s backwards;
+}
+@keyframes empty-in {
+  from {
+    opacity: 0;
+    translate: 0 4px;
+  }
+}
+/* Fades out while a part is being dragged out or placed, back in if it isn't put down. */
+.empty.faded {
+  opacity: 0;
+}
+.empty.faded > * {
+  pointer-events: none;
+}
+.empty > * {
+  pointer-events: auto;
+}
+#open-examples {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--line-2);
+}
+#open-examples:hover,
+#open-examples[aria-expanded='true'] {
+  text-decoration-color: var(--ink);
+}
+.empty .mw {
+  display: inline;
+}
+.empty .menu {
+  left: 50%;
+  top: calc(100% + 8px);
+  transform: translate(-50%, -6px);
+  text-align: left;
+  font-size: 13px;
+}
+.empty .menu.open {
+  transform: translate(-50%, 0);
+}
+
+/* the camera, top-left of the desk: the view, then fit and zoom */
+.camera {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  z-index: 10;
+}
+.zoom {
+  flex-direction: column;
+}
+.zoom > * + * {
+  border-left: 0;
+  border-top: 1px solid var(--line);
+}
+.zoom > button {
+  height: 32px;
+  width: 32px;
+  padding: 0;
+}
+.grp.zoom > :first-child {
+  border-radius: calc(var(--r) - 1px) calc(var(--r) - 1px) 0 0;
+}
+.grp.zoom > :last-child {
+  border-radius: 0 0 calc(var(--r) - 1px) calc(var(--r) - 1px);
+}
+
+/* Shift-drag: the box being drawn */
+.box-select {
+  position: fixed;
+  z-index: 50;
+  pointer-events: none;
+  background: rgba(31, 29, 26, 0.05);
+  border: 1px dashed var(--ink);
+}
+
+/* Only where there's a touch screen. */
+@media not (any-pointer: coarse) {
+  .touch-only {
+    display: none !important;
+  }
+}
+
+/* Bigger targets for fingers. */
+@media (pointer: coarse) {
+  .grp > button,
+  .grp > .mw > button {
+    height: 36px;
+    min-width: 36px;
+  }
+}
+
+/* Buttons over what's selected, after a touch. */
+.selbar {
+  position: absolute;
+  z-index: 25;
+  box-shadow: var(--shadow);
+}
+.selbar[hidden] {
+  display: none;
+}
+.selbar > button {
+  height: 40px;
+  padding: 0 12px 0 10px;
+}
+
+/* The magnifier over a finger aiming at a hole. */
+.loupe {
+  position: fixed;
+  z-index: 60;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  border: 2px solid var(--card);
+  box-shadow:
+    0 0 0 1px var(--line-2),
+    var(--shadow);
+  pointer-events: none;
+}
+
+/* ---------- the selection card ---------- */
+.card {
+  position: absolute;
+  top: 12px;
+  right: calc(var(--pw) + 12px);
+  width: 256px;
+  max-height: calc(100% - 24px - var(--dh));
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow);
+  z-index: 20;
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition:
+    opacity 0.16s var(--ease),
+    transform 0.16s var(--ease),
+    visibility 0s 0.16s;
+}
+.card.open {
+  visibility: visible;
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.16s var(--ease),
+    transform 0.16s var(--ease);
+}
+.card.wide {
+  width: 360px;
+}
+.card.xwide {
+  width: 392px;
+}
+.card.xwide .row {
+  grid-template-columns: 96px minmax(0, 1fr);
+}
+.card .hd {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 6px 8px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.card .tt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.card .tt b {
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.card .tt span {
+  font: 400 12px var(--mono);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.card .hd .ib {
+  height: 28px;
+  min-width: 28px;
+}
+.card .bd {
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+  overflow: auto;
+  min-height: 0;
+}
+.card .note {
+  color: var(--ink-3);
+  font-size: 12px;
+  margin-top: -2px;
+}
+.card .warn {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  color: var(--ink);
+  font-size: 12.5px;
+  line-height: 18px;
+}
+.card .warn .ic {
+  color: var(--ink-2);
+  margin-top: -1px;
+}
+.row {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+}
+.row > span:first-child {
+  color: var(--ink-2);
+}
+.val {
+  color: var(--ink);
+}
+.inp,
+.sel {
+  height: 28px;
+  width: 100%;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  background: var(--card);
+  outline: none;
+  font-size: 13px;
+}
+.inp {
+  padding: 0 8px;
+}
+.inp:focus,
+.sel:focus {
+  border-color: var(--ink);
+}
+/* dropdowns: the page's own button and menu stand in for the browser's select, which looks different */
+select[data-dd] {
+  display: none;
+}
+.sel.dd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
+  padding: 0 3px 0 8px;
+  text-align: left;
+  white-space: nowrap;
+  color: var(--ink);
+  transition: background-color 0.12s var(--ease);
+}
+.sel.dd .v {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sel.dd .ic {
+  color: var(--ink-3);
+}
+.sel.dd:hover,
+.sel.dd[aria-expanded='true'] {
+  background: var(--raised);
+}
+.ddm {
+  position: fixed;
+  min-width: 0;
+  max-height: min(336px, calc(100vh - 16px));
+  overflow: auto;
+  z-index: 60;
+}
+.pair {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.pair .inp {
+  flex: 1;
+  min-width: 0;
+}
+.pair .sel {
+  width: 72px;
+  flex: none;
+}
+.pair .sel.grow {
+  flex: 1;
+  width: auto;
+}
+.cb {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  text-align: left;
+}
+.cb i {
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--line-2);
+  border-radius: 3px;
+  background: var(--card);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.cb[aria-checked='true'] i {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+.cb i svg {
+  width: calc(9 * var(--u1));
+  height: calc(9 * var(--u1));
+  opacity: 0;
+}
+.cb[aria-checked='true'] i svg {
+  opacity: 1;
+}
+.cardgrp {
+  display: flex;
+}
+.cardgrp.grp > button {
+  flex: 1;
+  height: 26px;
+  font-size: 12.5px;
+  padding: 0 6px;
+}
+.bands {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.bands i {
+  width: 8px;
+  height: 18px;
+  border-radius: 1px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+.bands em {
+  font-style: normal;
+  color: var(--ink-3);
+  margin-left: 8px;
+}
+.wsw {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.wsw button {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+}
+.wsw button.on {
+  outline: 1.5px solid var(--ink);
+  outline-offset: 2px;
+}
+.unit {
+  flex: none;
+  width: 24px;
+  color: var(--ink-2);
+}
+.unit.w {
+  width: 40px;
+  text-align: right;
+}
+.wbtn {
+  height: 30px;
+  width: 100%;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  background: var(--card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--ink-2);
+  transition:
+    background-color 0.12s var(--ease),
+    color 0.12s var(--ease);
+}
+.wbtn:hover {
+  background: var(--raised);
+  color: var(--ink);
+}
+.fold-h {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  width: 100%;
+  color: var(--ink-2);
+  margin-left: -4px;
+}
+.fold-h:hover {
+  color: var(--ink);
+}
+.fold-h .ic {
+  color: var(--ink-3);
+  transition: transform 0.15s var(--ease);
+}
+.fold-h[aria-expanded='true'] .ic {
+  transform: rotate(90deg);
+}
+.fold-b {
+  display: grid;
+  gap: 8px;
+}
+.pinl {
+  display: grid;
+  grid-template-columns: 1fr 56px 1fr;
+  grid-auto-rows: 22px;
+  padding: 4px 0 6px;
+}
+.pinl.inline {
+  grid-template-columns: 40px 1fr;
+}
+.pinl.gated {
+  grid-template-columns: 1fr 96px 1fr;
+}
+.pkg svg.gates {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+.gates .lead {
+  fill: none;
+  stroke: var(--ink-2);
+  stroke-width: 1.2;
+}
+.gates .gate {
+  fill: var(--card, var(--bg));
+  stroke: var(--ink);
+  stroke-width: 1.2;
+}
+.gates .back,
+.gates .mark {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.2;
+}
+/* the package, drawn between the two columns of pins */
+.pkg {
+  grid-column: 2;
+  position: relative;
+  margin: -3px 0;
+  border: 1.5px solid var(--ink);
+  border-radius: 3px;
+  background: var(--bar);
+}
+.pinl.inline .pkg {
+  grid-column: 1;
+}
+.pkg .notch {
+  position: absolute;
+  top: -1.5px;
+  left: 50%;
+  width: 14px;
+  height: 7px;
+  border: 1.5px solid var(--ink);
+  border-top: 0;
+  border-radius: 0 0 7px 7px;
+  background: var(--card, var(--bg));
+  transform: translateX(-50%);
+}
+.pinl > div:not(.pkg) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.pinl > .l {
+  grid-column: 1;
+}
+.pinl > .r {
+  grid-column: 3;
+}
+.pinl.inline > .r {
+  grid-column: 2;
+}
+.pinl > .l {
+  justify-content: flex-end;
+  padding-right: 6px;
+}
+.pinl > .r {
+  padding-left: 6px;
+}
+.pinl i {
+  font: 400 11px var(--mono);
+  color: var(--ink-3);
+  font-style: normal;
+  flex: none;
+}
+.pinl > .l i {
+  order: 2;
+}
+.pinl > .l .lv {
+  order: -1;
+}
+.pinl > .r i {
+  order: -1;
+}
+.pinl b {
+  font: 400 12px var(--mono);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* logic level marker: a small square, filled for high, hollow for low */
+.lv {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  display: inline-block;
+  border: 1.5px solid var(--ink);
+  border-radius: 1px;
+}
+.lv.hi {
+  background: var(--ink);
+}
+.lv.mid {
+  background: linear-gradient(to top, var(--ink) 50%, transparent 50%);
+}
+.lv.loose {
+  border-color: var(--ink-3);
+  border-style: dashed;
+}
+.hex {
+  font: 400 12px/20px var(--mono);
+  display: grid;
+  grid-template-columns: auto repeat(8, 1fr);
+  column-gap: 4px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--bar);
+  text-align: center;
+}
+.hex .a {
+  color: var(--ink-3);
+  text-align: left;
+  padding-right: 8px;
+}
+.hex .ff {
+  color: var(--ink-3);
+}
+.regs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr) 1.4fr;
+  gap: 4px;
+}
+.reg {
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 3px 8px 4px;
+  background: var(--bar);
+}
+.reg span {
+  display: block;
+  font-size: 11.5px;
+  line-height: 16px;
+  color: var(--ink-3);
+}
+.reg b {
+  display: block;
+  font: 500 14px/20px var(--mono);
+}
+.flags {
+  display: flex;
+  gap: 3px;
+}
+.flag {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--line-2);
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+  font: 400 12px var(--mono);
+  color: var(--ink-3);
+  background: var(--card);
+}
+.flag.on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+.reading {
+  font: 500 30px/40px var(--font);
+  padding: 4px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--bar);
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.reading small {
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--ink-2);
+  margin-left: 6px;
+}
+.reading.off {
+  color: var(--ink-3);
+}
+.screen {
+  display: block;
+  width: 100%;
+  height: auto;
+  flex: none;
+  border-radius: var(--r);
+  background: #121a20;
+}
+.chs {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: none;
+}
+/* a small button beside a number box, as tall as the box (the scope's 50 %) */
+.pair .btn {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12.5px;
+}
+/* a channel's name over its rows, in the scope's Position and coupling fold */
+.chhead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.chrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.chrow .sel {
+  flex: 1;
+  min-width: 0;
+}
+.meas {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+.meas th {
+  font-weight: 400;
+  color: var(--ink-3);
+  text-align: right;
+  padding: 0 0 4px;
+}
+.meas th:first-child,
+.meas td:first-child {
+  text-align: left;
+  color: var(--ink-2);
+}
+.meas td {
+  text-align: right;
+  padding: 3px 0;
+  border-top: 1px solid var(--line);
+}
+.rng {
+  flex: 1;
+  min-width: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 28px;
+  background: none;
+  margin: 0;
+}
+.rng::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line-2);
+}
+.rng::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border-radius: 3px;
+  background: var(--card);
+  border: 1px solid var(--ink-2);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+.rng::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line-2);
+}
+.rng::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--card);
+  border: 1px solid var(--ink-2);
+}
+.dips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.dipb {
+  width: 24px;
+  height: 46px;
+  border: 1px solid var(--line-2);
+  border-radius: 4px;
+  background: var(--card);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0 3px;
+  font: 400 10.5px/12px var(--mono);
+  color: var(--ink-3);
+}
+.dipb:hover {
+  background: var(--raised);
+}
+.dipb i {
+  display: block;
+  width: 12px;
+  height: 22px;
+  border-radius: 2px;
+  background: var(--raised);
+  box-shadow: inset 0 0 0 1px var(--line);
+  position: relative;
+}
+.dipb i::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: 2px;
+  height: 9px;
+  border-radius: 1px;
+  background: var(--ink-3);
+}
+.dipb.on i::after {
+  bottom: auto;
+  top: 2px;
+  background: var(--ink);
+}
+.legs {
+  display: flex;
+  gap: 4px;
+}
+.legs span {
+  width: 30px;
+  height: 24px;
+  border: 1px solid var(--line-2);
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+  font: 400 12px var(--mono);
+  background: var(--bar);
+}
+.segs {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+}
+.segs span {
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bar);
+  display: grid;
+  place-items: center;
+  align-content: center;
+  line-height: 14px;
+}
+.segs b {
+  font: 500 12px var(--mono);
+}
+.segs small {
+  font: 400 10.5px var(--mono);
+  color: var(--ink-3);
+}
+.segs .lit {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+.segs .lit small {
+  color: #c9c4ba;
+}
+.serial {
+  margin: 0;
+  font: 400 12px/18px var(--mono);
+  white-space: pre;
+  display: block;
+}
+
+/* ---------- "save first?" popup: small, in the middle, the page dimmed a little behind it ---------- */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  background: rgba(31, 29, 26, 0.18);
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    opacity 0.16s var(--ease),
+    visibility 0s 0.16s;
+}
+.modal.open {
+  visibility: visible;
+  opacity: 1;
+  transition: opacity 0.16s var(--ease);
+}
+.dlg {
+  width: 400px;
+  max-width: calc(100vw - 32px);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.06),
+    0 16px 40px rgba(0, 0, 0, 0.14);
+  padding: 20px 20px 16px;
+  transform: translateY(6px);
+  transition: transform 0.16s var(--ease);
+}
+.modal.open .dlg {
+  transform: none;
+}
+.dlg h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 500;
+}
+.dlg p {
+  margin: 0 0 20px;
+  color: var(--ink-2);
+}
+.dlg-b {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  background: var(--card);
+  white-space: nowrap;
+  transition: background-color 0.12s var(--ease);
+}
+.btn:hover {
+  background: var(--raised);
+}
+.btn.quiet {
+  border-color: transparent;
+  color: var(--ink-2);
+}
+.primary {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: var(--r);
+  background: var(--ink);
+  color: #fff;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 0.15s var(--ease);
+}
+.primary:hover {
+  background: #3a3631;
+}
+.primary:active {
+  transform: scale(0.98);
+}
+
+/* ---------- hint: what's in progress, and Esc to cancel it ---------- */
+.hint {
+  position: absolute;
+  left: calc((100% - var(--pw)) / 2);
+  bottom: calc(var(--dh) + 16px);
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: #fff;
+  padding: 6px 6px 6px 14px;
+  border-radius: var(--r);
+  display: none;
+  align-items: center;
+  gap: 12px;
+  white-space: nowrap;
+  z-index: 15;
+}
+.hint.show {
+  display: flex;
+}
+.hint button {
+  color: #d8d4cc;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: calc(var(--r) - 2px);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.hint button:hover {
+  background: #3a3631;
+  color: #fff;
+}
+.hint kbd {
+  color: #a9a399;
+}
+
+/* a short message: after a keyboard toggle, or what something just did */
+.toast {
+  position: absolute;
+  left: calc((100% - var(--pw)) / 2);
+  top: 12px;
+  transform: translate(-50%, -6px);
+  max-width: min(560px, calc(100% - var(--pw) - 120px));
+  background: var(--ink);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: var(--r);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.16s var(--ease),
+    transform 0.16s var(--ease);
+  z-index: 16;
+  text-align: center;
+}
+.toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* ---------- parts panel ---------- */
+.parts {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 296px;
+  z-index: 25;
+  border-left: 1px solid var(--line);
+  background: var(--bar);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.collapsed .parts {
+  border-left: 0;
+  width: 0;
+}
+.collapsed .parts > :not(.fold) {
+  display: none;
+}
+.coding .parts {
+  display: none;
+}
+.fold {
+  position: absolute;
+  left: -16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 48px;
+  background: var(--bar);
+  border: 1px solid var(--line);
+  border-right: 0;
+  border-radius: var(--r) 0 0 var(--r);
+  display: grid;
+  place-items: center;
+  color: var(--ink-3);
+  z-index: 10;
+}
+.fold:hover {
+  color: var(--ink);
+  background: var(--raised);
+}
+.collapsed .fold .ic {
+  transform: rotate(180deg);
+}
+.phead {
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.catbtn {
+  height: 32px;
+  width: 100%;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  background: var(--card);
+  padding: 0 6px 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 500;
+}
+.catbtn:hover {
+  background: var(--raised);
+}
+.phead .mw {
+  display: block;
+}
+.phead .menu {
+  right: 0;
+  min-width: 0;
+}
+.search {
+  position: relative;
+  display: block;
+}
+.search .ic {
+  position: absolute;
+  left: 8px;
+  top: 7px;
+  color: var(--ink-3);
+  pointer-events: none;
+}
+.search input {
+  height: 32px;
+  width: 100%;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  padding: 0 10px 0 32px;
+  background: var(--card);
+  outline: none;
+}
+.search input:focus {
+  border-color: var(--ink);
+}
+.search input::placeholder {
+  color: var(--ink-3);
+}
+.plist {
+  flex: 1;
+  overflow: auto;
+  padding: 0 8px 24px;
+}
+.sect h3 {
+  margin: 20px 8px 8px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+.tile {
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  padding: 8px 4px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: center;
+  min-width: 0;
+  user-select: none;
+  transition: background-color 0.12s var(--ease);
+}
+.tile:hover {
+  background: var(--raised);
+}
+.tile.on {
+  background: var(--card);
+  border-color: var(--ink);
+}
+.tile svg {
+  width: 64px;
+  height: 48px;
+  margin-bottom: 6px;
+  pointer-events: none;
+}
+.tile b {
+  font-weight: 500;
+  font-size: 12.5px;
+  line-height: 16px;
+  max-width: 100%;
+  text-wrap: balance;
+}
+.tile span {
+  font-size: 11.5px;
+  line-height: 16px;
+  color: var(--ink-3);
+  max-width: 100%;
+  text-wrap: balance;
+}
+.none {
+  padding: 32px 12px;
+  text-align: center;
+  color: var(--ink-2);
+}
+
+/* ---------- labels over the 3D view: pin names, + and −, Hold ---------- */
+.overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 12;
+  overflow: hidden;
+}
+.tag {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 16px;
+  padding: 0 3px;
+  border: 1px solid var(--line-2);
+  border-radius: 3px;
+  background: var(--card);
+  font: 400 10.5px/14px var(--mono);
+  color: var(--ink);
+  white-space: nowrap;
+  transform-origin: 0 50%;
+}
+.tag-plus,
+.tag-minus {
+  min-width: 16px;
+  text-align: center;
+}
+.hold-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 14;
+  overflow: hidden;
+}
+/* Hold, above a push button while running; Held, on a button kept down */
+.hold {
+  position: absolute;
+  pointer-events: auto;
+  transform: translate(-50%, calc(-100% - 8px));
+  min-width: 64px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  background: var(--card);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  font-weight: 500;
+}
+.hold:hover {
+  background: var(--raised);
+}
+.hold.held {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+.hold.tagonly {
+  min-width: 0;
+  height: 18px;
+  padding: 0 5px;
+  font: 400 11px/16px var(--mono);
+}
+
+/* ---------- hover info on a hole ---------- */
+.hcard {
+  position: absolute;
+  z-index: 30;
+  min-width: 176px;
+  max-width: 280px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  padding: 8px 12px 9px;
+  pointer-events: none;
+  display: none;
+}
+.hcard.show {
+  display: block;
+}
+.hcard .hn {
+  font: 500 12.5px/18px var(--mono);
+}
+.hcard .hl {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ink-3);
+  margin: 6px 0 2px;
+}
+.hcard ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.hcard li {
+  line-height: 19px;
+}
+.hcard .hv {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid var(--line);
+}
+
+/* ---------- problems, bottom-left of the desk while running ---------- */
+.probs {
+  position: absolute;
+  left: 12px;
+  bottom: calc(var(--dh) + 12px);
+  z-index: 16;
+}
+.probs > button {
+  height: 32px;
+  padding: 0 12px 0 8px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  background: var(--card);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.probs > button:hover,
+.probs > button[aria-expanded='true'] {
+  background: var(--raised);
+}
+.menu.up {
+  top: auto;
+  bottom: calc(100% + 4px);
+  transform: translateY(6px);
+}
+.menu.up.open {
+  transform: none;
+}
+.probs .menu {
+  width: 320px;
+  white-space: normal;
+  max-height: 50vh;
+  overflow: auto;
+}
+.prob {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px 8px;
+  border-radius: calc(var(--r-card) - 4px);
+}
+.prob:hover:not(:disabled) {
+  background: var(--raised);
+}
+.prob:disabled {
+  cursor: default;
+}
+.prob b {
+  display: block;
+  font-weight: 500;
+}
+.prob span {
+  display: block;
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 16px;
+  margin-top: 1px;
+}
+
+/* ---------- the dock: probes and bus trace ---------- */
+.dock {
+  position: absolute;
+  left: 0;
+  right: var(--pw);
+  bottom: 0;
+  z-index: 22;
+  border-top: 1px solid var(--line);
+  background: var(--bar);
+  display: flex;
+  flex-direction: column;
+  height: 184px;
+}
+.dock.min {
+  height: 41px !important;
+}
+.grip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -4px;
+  height: 8px;
+  cursor: ns-resize;
+  z-index: 5;
+}
+.dock.min .grip {
+  display: none;
+}
+.dhead {
+  height: 40px;
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 0 6px 0 8px;
+  border-bottom: 1px solid var(--line);
+}
+.dock.min .dhead {
+  border-bottom: 0;
+}
+.dtab {
+  position: relative;
+  padding: 0 10px;
+  color: var(--ink-2);
+  display: inline-flex;
+  align-items: center;
+}
+.dtab:hover {
+  color: var(--ink);
+}
+.dtab.on {
+  color: var(--ink);
+}
+.dtab.on::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -1px;
+  height: 2px;
+  background: var(--ink);
+}
+.dock.min .dtab.on::after {
+  display: none;
+}
+.dtools {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 4px;
+}
+.dtools .dnote {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+.dtools .grp > button {
+  height: 28px;
+}
+.dhead > .ib {
+  align-self: center;
+}
+.dock.min .dmin .ic {
+  transform: rotate(180deg);
+}
+.dbody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+}
+.dock.min .dbody {
+  display: none;
+}
+.dempty {
+  padding: 16px;
+  color: var(--ink-2);
+}
+.lanes {
+  display: flex;
+  min-height: 100%;
+}
+/* the label column: the probe, its hole on one line (cut short with … if it must), its reading below */
+.lcol {
+  width: 184px;
+  flex: none;
+  border-right: 1px solid var(--line);
+}
+.lcol .lsp {
+  height: 22px;
+  border-bottom: 1px solid var(--line);
+}
+.lname {
+  height: 40px;
+  padding: 4px 6px 4px 12px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.lname .lt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.lname .lt div {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 12px;
+  line-height: 16px;
+  min-width: 0;
+}
+.lname .lt b {
+  font: 500 12px/16px var(--mono);
+  flex: none;
+}
+.lname .lt span {
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lname em {
+  font-style: normal;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.lname .ib {
+  height: 24px;
+  min-width: 24px;
+  visibility: hidden;
+}
+.lname:hover .ib {
+  visibility: visible;
+}
+.lsvg {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  cursor: crosshair;
+}
+.lsvg canvas {
+  display: block;
+  width: 100%;
+}
+.bus {
+  width: 100%;
+  border-collapse: collapse;
+  font: 400 12px/22px var(--mono);
+}
+.bus th {
+  position: sticky;
+  top: 0;
+  background: var(--bar);
+  font: 400 12px/26px var(--font);
+  color: var(--ink-3);
+  text-align: left;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+  z-index: 1;
+}
+.bus td {
+  padding: 0 12px;
+  white-space: nowrap;
+  border-bottom: 1px solid rgba(31, 29, 26, 0.05);
+}
+.bus td.n {
+  color: var(--ink-3);
+  width: 96px;
+}
+.bus tr.w td.rw {
+  font-weight: 500;
+}
+
+/* ---------- code panel, in place of the parts panel ---------- */
+.codep {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 480px;
+  z-index: 25;
+  display: none;
+  flex-direction: column;
+  border-left: 1px solid var(--line);
+  background: var(--bar);
+  min-width: 0;
+}
+.coding .codep {
+  display: flex;
+}
+.chead {
+  height: 44px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px 0 16px;
+  border-bottom: 1px solid var(--line);
+}
+.chead b {
+  font-size: 14px;
+  font-weight: 500;
+  flex: 1;
+}
+.ctools {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.ctools .sel {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+}
+.lang {
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.editor {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  background: var(--card);
+}
+.gutter {
+  width: 44px;
+  flex: none;
+  padding: 10px 0;
+  text-align: right;
+  font: 400 12.5px/20px var(--mono);
+  color: var(--ink-3);
+  background: var(--bar);
+  border-right: 1px solid var(--line);
+  overflow: hidden;
+  user-select: none;
+}
+.gutter div {
+  padding-right: 10px;
+}
+.gutter div.err {
+  background: var(--ink);
+  color: #fff;
+}
+.code {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+.code pre,
+.code textarea {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 10px 12px;
+  font: 400 12.5px/20px var(--mono);
+  white-space: pre;
+  tab-size: 8;
+  border: 0;
+  letter-spacing: 0;
+}
+.code pre {
+  overflow: hidden;
+  pointer-events: none;
+  color: var(--ink);
+}
+.code textarea {
+  overflow: auto;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--ink);
+  resize: none;
+  outline: none;
+}
+.code textarea::selection {
+  background: rgba(31, 29, 26, 0.16);
+  color: transparent;
+}
+.errband {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: var(--raised);
+  pointer-events: none;
+  display: none;
+}
+.t-c {
+  color: #8d877c;
+}
+.t-l {
+  color: #2f6b4f;
+}
+.t-n {
+  color: #9b4f1a;
+}
+.t-d {
+  color: #4d5f7d;
+}
+.t-k {
+  color: var(--ink);
+}
+.cout {
+  height: 150px;
+  flex: none;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  background: var(--bar);
+}
+.cout .dhead {
+  height: 36px;
+}
+.msgs {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 12px;
+  display: grid;
+  align-content: start;
+  gap: 4px;
+}
+.msg {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  line-height: 18px;
+}
+.msg .ic {
+  color: var(--ink-3);
+  margin-top: -1px;
+}
+.cempty {
+  margin: 0;
+  padding: 20px 16px;
+  color: var(--ink-2);
+}
+.cbody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+.sk {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  background: var(--card);
+  padding: 8px 12px;
+}
+.sk:hover {
+  background: var(--raised);
+}
+.sk.on {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+.sk b {
+  display: block;
+  font-weight: 500;
+}
+.sk span {
+  display: block;
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+/* ---------- dragging a tile out of the parts panel ---------- */
+.ghost {
+  position: fixed;
+  z-index: 90;
+  pointer-events: none;
+  width: 84px;
+  height: 66px;
+  background: var(--card);
+  border: 1px solid var(--ink);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  display: none;
+  place-items: center;
+  transform: translate(-50%, -50%);
+}
+.ghost.show {
+  display: grid;
+}
+.ghost svg {
+  width: 64px;
+  height: 48px;
+}
+.dragging,
+.dragging * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
+/* ---------- tooltip ---------- */
+.tip {
+  position: fixed;
+  z-index: 100;
+  background: var(--ink);
+  color: #fff;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  pointer-events: none;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.tip.show {
+  display: flex;
+}
+.tip kbd {
+  color: #a9a399;
+}
+
+/* ---------- loading, and when the desk can't start ---------- */
+.preload *,
+.preload *::before,
+.preload *::after {
+  transition: none !important;
+}
+.boot {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background-color: var(--desk);
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 14px;
+  /* Shows after a third of a second, the words after two: CSS delays, so they still happen while the
+     page is busy building the desk. */
+  opacity: 0;
+  animation: boot-show 0s linear 0.333s forwards;
+}
+@keyframes boot-show {
+  to {
+    opacity: 1;
+  }
+}
+/* Over the desk only, while a big circuit is being built: the bars stay as they are. */
+.boot.busy {
+  position: absolute;
+  right: var(--pw);
+  /* Under the camera buttons, which show from the start. */
+  z-index: 9;
+}
+/* Nothing is loading yet while the phone notice waits for an answer, and the loader would cover it. */
+#phone.open ~ .boot {
+  display: none;
+}
+.boot.failed {
+  animation: none;
+  opacity: 1;
+}
+.boot > svg,
+.boot > .sparks {
+  grid-area: 1 / 1;
+}
+.boot .words {
+  grid-area: 2 / 1;
+  color: var(--ink-3);
+  font-size: 13px;
+  opacity: 0;
+  animation: boot-show 0s linear 2s forwards;
+}
+.boot .sparks {
+  position: relative;
+  pointer-events: none;
+}
+.boot .sparks .rail {
+  position: absolute;
+  left: calc(6 * var(--k));
+  width: calc(45 * var(--k));
+  height: var(--k);
+  overflow: hidden;
+}
+.boot .sparks b {
+  position: absolute;
+  top: 0;
+  left: calc(-3 * var(--k));
+  width: calc(4 * var(--k));
+  height: var(--k);
+  will-change: transform;
+  animation: 1.8s steps(51, end) infinite;
+}
+.boot .sparks b.back {
+  left: 0;
+}
+.boot .sparks .flying {
+  position: absolute;
+  left: calc(6 * var(--k));
+  top: calc(8 * var(--k));
+}
+.boot .sparks i {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--k);
+  height: var(--k);
+  opacity: 0;
+  will-change: transform, opacity;
+  animation-duration: 1.8s;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.boot.stopped .sparks {
+  display: none;
+}
+.boot .box {
+  text-align: center;
+  max-width: 380px;
+  display: grid;
+  justify-items: center;
+}
+.boot h3 {
+  margin: 18px 0 6px;
+  font-size: 17px;
+  font-weight: 500;
+}
+.boot p {
+  margin: 0 0 16px;
+  color: var(--ink-2);
+  font-size: 13.5px;
+}
+
+/* frame rate and draw calls, with #debug on the address */
+.perf {
+  position: absolute;
+  left: 56px;
+  top: 12px;
+  z-index: 10;
+  font: 400 11px/1 var(--mono);
+  color: var(--ink-3);
+}
+
+/* ---------- phones ----------
+   A slim bar on top (name, Power, menu), the tools along the bottom where a thumb reaches them, and the
+   parts list and the selected part's card as sheets that come up from the bottom. The <html> gets
+   .phone before the first paint (app/index.html). */
+.phone-only {
+  display: none !important;
+}
+.phone .phone-only {
+  display: inline-flex !important;
+}
+.phone .no-phone {
+  display: none !important;
+}
+.phone .app {
+  min-width: 0;
+  grid-template-rows: 48px minmax(0, 1fr) auto;
+  grid-template-areas: 'top' 'work' 'tools';
+}
+.phone .bar1 {
+  grid-area: top;
+  padding: 0 8px 0 4px;
+}
+.phone .work {
+  grid-area: work;
+  --pw: 0px;
+}
+.phone .bar2 {
+  grid-area: tools;
+  border-bottom: 0;
+  border-top: 1px solid var(--line);
+  background: var(--bar);
+  padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+  gap: 0;
+  justify-content: space-around;
+}
+.phone .home,
+.phone .bar1 .grp.run,
+.phone .bar1 .vsep {
+  display: none;
+}
+.phone .bar1 .name {
+  flex: 1;
+  min-width: 0;
+}
+.phone #name {
+  max-width: 100%;
+}
+.phone .bar1 .grow {
+  display: none;
+}
+/* The bottom bar: each tool an icon over a short label. */
+.phone .bar2 > .grp {
+  border: 0;
+  background: none;
+}
+.phone .bar2 .grp > * + * {
+  border-left: 0;
+}
+.phone .bar2 .grp > button.w,
+.phone .bar2 .grp > .mw > button.w {
+  flex-direction: column;
+  height: 48px;
+  min-width: 52px;
+  padding: 0 4px;
+  gap: 3px;
+  font-size: 11px;
+  border-radius: var(--r);
+}
+.phone .bar2 .grp > .mw > .wc {
+  height: 48px;
+  min-width: 30px;
+  padding: 0 4px;
+  border-radius: var(--r);
+}
+/* The wire colour shows; its menu opens with a tap on it, so the arrow can go. */
+.phone .bar2 .grp > .mw > .wc > .ic.sm {
+  display: none;
+}
+.phone .bar2 .menu {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+/* No room for menus to fly out sideways: a menu's submenu (Examples, Settings, Shortcuts) opens over it,
+   lined up with its top right corner, and no wider than the screen. */
+.phone .sub,
+.phone .sub.big {
+  position: static;
+}
+.phone .menu.right .sub > .menu,
+.phone .menu.right .sub.big > .menu {
+  top: -1px;
+  right: -1px;
+  left: auto;
+  min-width: calc(100% + 2px);
+  min-height: calc(100% + 2px);
+  max-width: calc(100vw - 16px);
+  max-height: calc(100svh - 120px);
+  overflow: auto;
+}
+/* No keyboard on a phone: no shortcuts list, no keys beside menu items. */
+.phone #sub-keys,
+.phone .mi kbd {
+  display: none;
+}
+/* Sheets from the bottom: the parts list, the card, the Code panel. */
+.phone .parts {
+  top: auto;
+  left: 0;
+  width: auto;
+  height: var(--sheet, 55%);
+  border-left: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 12px 12px 0 0;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.08);
+  padding-top: 14px;
+  z-index: 30;
+}
+.phone .work.collapsed .parts {
+  display: none;
+}
+/* The fold becomes the sheet's handle: drag it to make the sheet taller or shorter, tap it to close. */
+.phone .fold {
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  width: 64px;
+  height: 18px;
+  border: 0;
+  background: none;
+  touch-action: none;
+}
+.phone .fold .ic {
+  display: none;
+}
+.phone .fold::after,
+.phone .card .hd::before {
+  content: '';
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line-2);
+}
+.phone .card {
+  top: auto;
+  left: 0;
+  right: 0;
+  bottom: var(--dh);
+  width: auto !important;
+  max-height: 40%;
+  border-radius: 12px 12px 0 0;
+  border-bottom: 0;
+  transform: translateY(8px);
+}
+.phone .card.tall {
+  max-height: 85%;
+}
+.phone .card .hd {
+  position: relative;
+  padding-top: 16px;
+}
+.phone .card .hd::before {
+  position: absolute;
+  left: 50%;
+  top: 6px;
+  transform: translateX(-50%);
+}
+.phone .codep {
+  left: 0;
+  width: auto;
+  border-left: 0;
+}
+.phone .hint {
+  max-width: calc(100% - 16px);
+  white-space: normal;
+}
+/* Held sideways there's little height: shorter bars, no labels under the tools, taller sheets. */
+@media (orientation: landscape) {
+  .phone .app {
+    grid-template-rows: 40px minmax(0, 1fr) auto;
+  }
+  .phone .bar2 .grp > button.w,
+  .phone .bar2 .grp > .mw > button.w,
+  .phone .bar2 .grp > .mw > .wc {
+    height: 40px;
+    font-size: 0;
+    gap: 0;
+  }
+  .phone .bar2 {
+    padding-left: max(4px, env(safe-area-inset-left));
+    padding-right: max(4px, env(safe-area-inset-right));
+  }
+  .phone .parts {
+    height: var(--sheet, 80%);
+  }
+  .phone .card {
+    max-height: 60%;
+  }
+}

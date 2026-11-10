@@ -1,0 +1,18 @@
+/*
+ * The families, served from our own site (Fontsource packages, bundled by Vite) rather than
+ * Google's, so nothing goes to a third party and the app works offline. All SIL Open Font License 1.1.
+ * Only the weights in use; canvasFont() in fonts.ts caps requests to match.
+ *
+ * The workbench's own type is Atkinson Hyperlegible Next, with Atkinson Hyperlegible Mono for keys,
+ * part names and hex, at 400 and 500. Barlow Semi Condensed and Sometype Mono are what's printed on
+ * the 3D parts (chip markings, instrument faces). The landing page uses the same files.
+ */
+@import '@fontsource/atkinson-hyperlegible-next/400.css';
+@import '@fontsource/atkinson-hyperlegible-next/500.css';
+@import '@fontsource/atkinson-hyperlegible-mono/400.css';
+@import '@fontsource/atkinson-hyperlegible-mono/500.css';
+@import '@fontsource/barlow-semi-condensed/400.css';
+@import '@fontsource/barlow-semi-condensed/500.css';
+@import '@fontsource/barlow-semi-condensed/600.css';
+@import '@fontsource/sometype-mono/400.css';
+@import '@fontsource/sometype-mono/500.css';
