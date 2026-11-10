@@ -576,13 +576,15 @@ export class Inspector {
           this.knob(part.id, card);
         }
         return '';
-      case 'button':
-        if (part && live)
-          card.row(
-            '',
-            checkbox(sim.isHeld(part.id), 'Held down', (on) => (on ? sim.hold(part.id) : sim.unhold(part.id))),
-          );
+      case 'button': {
+        card.note('While it runs, click it on the board to press it. Shift-click keeps it held down.');
+        if (!part || !live) return '';
+        const held = checkbox(sim.isHeld(part.id), 'Held down', (on) => (on ? sim.hold(part.id) : sim.unhold(part.id)));
+        // Kept in step with the button, which a click on the board also lets go of.
+        card.live(() => held.setAttribute('aria-checked', String(sim.isHeld(part.id))));
+        card.body.append(held);
         return '';
+      }
       case 'slide': {
         const position = ((part?.state ?? 0) & 1) as 0 | 1;
         card.row(
