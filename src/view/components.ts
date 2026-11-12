@@ -174,11 +174,11 @@ function ledBody(size: number): THREE.BufferGeometry {
  * Two legs from holes `span` mm apart up into a body whose legs are a pitch apart, bent outwards
  * near the board when the holes are further apart, the way you'd bend an LED to reach a rail.
  */
-function bentLegs(key: string, span: number, top: number, radius: number): THREE.BufferGeometry {
-  return cached(`${key}-${span.toFixed(2)}`, () => {
+function bentLegs(key: string, span: number, top: number, radius: number, gap = PITCH): THREE.BufferGeometry {
+  return cached(`${key}-${span.toFixed(2)}-${gap}`, () => {
     const leg = (sign: number): THREE.BufferGeometry => {
       const foot = (sign * span) / 2;
-      const body = (sign * PITCH) / 2;
+      const body = (sign * gap) / 2;
       const points =
         Math.abs(foot - body) < 0.01
           ? [new THREE.Vector3(foot, -HOLE_DEPTH, 0), new THREE.Vector3(foot, top, 0)]
@@ -200,8 +200,26 @@ function bentLegs(key: string, span: number, top: number, radius: number): THREE
 
 const legSpan = (pins: readonly V[]): number => Math.hypot(pins[1].x - pins[0].x, pins[1].z - pins[0].z);
 
-function ledLegs(span: number): THREE.BufferGeometry {
-  return bentLegs('led-legs', span, LED_BASE + 1.6, 0.24);
+function ledLegs(span: number, size: number): THREE.BufferGeometry {
+  const top = LED_BASE + 1.6;
+  if (size !== 3) return bentLegs('led-legs', span, top, 0.24);
+  // The 3 mm body is narrower than the pitch, so its legs meet it inside its edge: bent in from
+  // further holes in one go, or from neighbouring holes stepped in just under it.
+  const inside = ledShape(3).body - 0.5;
+  if (span > PITCH + 0.01) return bentLegs('led-legs', span, top, 0.24, inside * 2);
+  return cached(`led-legs-3-${span.toFixed(2)}`, () => {
+    const leg = (sign: number): THREE.BufferGeometry => {
+      const foot = (sign * span) / 2;
+      const points = [
+        new THREE.Vector3(foot, -HOLE_DEPTH, 0),
+        new THREE.Vector3(foot, LED_BASE - 1.2, 0),
+        new THREE.Vector3(sign * inside, LED_BASE - 0.2, 0),
+        new THREE.Vector3(sign * inside, top, 0),
+      ];
+      return tube(roundCorners(points, 0.5, 4), 0.24, 6, false);
+    };
+    return mergeGeometries([leg(-1), leg(1)])!;
+  });
 }
 
 /** The reflector cup (cathode) and post (anode) you can see through the lens. */
@@ -231,7 +249,7 @@ function ledPieces(def: LedDef, pins: readonly V[], size: number): Piece[] {
   const matrix = placement(pins[0], pins[1], midpoint(pins[0], pins[1]));
   const span = legSpan(pins);
   return [
-    { key: `led-legs-${span.toFixed(2)}`, geometry: ledLegs(span), material: tinMaterial, matrix },
+    { key: `led-legs-${size}-${span.toFixed(2)}`, geometry: ledLegs(span, size), material: tinMaterial, matrix },
     { key: `led-inner-${size}`, geometry: ledInner(size), material: tinMaterial, matrix },
     { key: `led-lens-${def.color}-${size}`, geometry: ledBody(size), material: lensMaterial(def.color), matrix },
   ];
