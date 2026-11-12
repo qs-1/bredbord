@@ -170,7 +170,7 @@ export const PX = {
   ],
   trash: [
     '...###...',
-    '.#..#..#.',
+    '#########',
     '.#.....#.',
     '.#.#.#.#.',
     '.#.#.#.#.',
@@ -253,7 +253,7 @@ export const PX = {
     '#.......#',
     '#.......#',
     '#.......#',
-    '.#..#..#.',
+    '#########',
     '.........',
   ],
   save: [
@@ -264,7 +264,7 @@ export const PX = {
     '...###...',
     '....#....',
     '#.......#',
-    '.#..#..#.',
+    '#########',
     '.........',
   ],
   book: [
@@ -391,8 +391,7 @@ const rects = (rows: readonly string[], dy = 0): string => {
 
 /** An icon as SVG markup, in `fill` (the text colour by default). */
 export function pxSVG(name: PixelIcon, fill = 'currentColor'): string {
-  const viewBox = name === 'open' || name === 'save' ? '-0.5 -0.5 10 10' : '0 0 9 9';
-  return `<svg viewBox="${viewBox}" fill="${fill}" shape-rendering="crispEdges" aria-hidden="true">${rects(PX[name])}</svg>`;
+  return `<svg viewBox="0 0 9 9" fill="${fill}" shape-rendering="crispEdges" aria-hidden="true">${rects(PX[name])}</svg>`;
 }
 
 /** A `<span class="ic">` holding an icon. */
