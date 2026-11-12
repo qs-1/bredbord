@@ -667,7 +667,8 @@ export class Inspector {
           card.row(
             side === 0 ? 'Top side' : 'Bottom side',
             choice(
-              POWER_JUMPERS.map((j, i) => [i, j.label] as const),
+              // In the order the jumper's pins are on the module: 3.3 V, Off, 5 V.
+              POWER_JUMPERS.map((j, i) => [i, j.label] as const).reverse(),
               powerJumper(part?.state, side),
               (j) => part && sim.setPowerJumper(part.id, side, j),
             ),
