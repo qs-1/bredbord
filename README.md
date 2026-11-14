@@ -4,7 +4,7 @@ A free 3D breadboard simulator that runs in the browser.
 
 **Try it:** [bredbord](https://bredbord.vercel.app/)
 
-![The 4-bit counter example running, with the app around it](media/counter.webp)
+![The 4-bit counter example running, with the app around it](media/bredbord.png)
 
 Ben Eater's breadboard computer [videos](https://www.youtube.com/playlist?list=PLowKtXNTBypGqImE405J2565dvjafglHU) were a huge inspiration for this. Most of the chips from his 8-bit and 6502 builds are here. There are probably some issues so beware. Full builds might still be laggy, trying to improve performance. Mobile support is in development.
 
