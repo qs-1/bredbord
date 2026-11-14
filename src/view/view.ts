@@ -5,11 +5,20 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Desk } from './desk';
+import { FlatCamera } from './flat-camera';
 import { LIGHT_DIRECTION, type Theme } from './materials';
 import { setMaxAnisotropy } from './textures';
 
 const ANGLED = new THREE.Vector3(0, 0.82, 0.57).normalize();
 const TOP_DOWN = new THREE.Vector3(0, 1, 0.002).normalize();
+
+/**
+ * Looking down, the view loses its perspective: flat from this close to straight down (the cosine of
+ * the tilt from vertical, here 4°), with full perspective back by FLAT_FROM (18°), so tilting out of
+ * the top view brings the perspective back gradually and the top view itself has none.
+ */
+const FLAT_AT = Math.cos(THREE.MathUtils.degToRad(4));
+const FLAT_FROM = Math.cos(THREE.MathUtils.degToRad(18));
 
 const SCENE_THEMES: Record<
   Theme,
@@ -65,7 +74,7 @@ interface Tween {
 export class View {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
-  readonly camera = new THREE.PerspectiveCamera(32, 1, 2, 9000);
+  readonly camera = new FlatCamera(32, 1, 2, 9000);
   readonly controls: OrbitControls;
   /** Boards, parts and wires. */
   readonly world = new THREE.Group();
@@ -157,14 +166,21 @@ export class View {
     c.touches = { ONE: null, TWO: null } as unknown as typeof c.touches;
     // The arrow keys nudge what's selected (see Tools), so they don't pan the camera.
     if (!(options.interactive ?? true)) c.enabled = false;
+    // Zooming to the cursor moves the camera down the line from it through the spot under the cursor.
+    // The controls find that line by unprojecting through the camera, which in the flat top view runs
+    // straight down instead; take it from the spot on the plane the flat view matches perspective on.
+    const zooming = c as unknown as {
+      _updateZoomParameters(x: number, y: number): void;
+      _dollyDirection: THREE.Vector3;
+    };
+    const updateZoom = zooming._updateZoomParameters.bind(c);
+    zooming._updateZoomParameters = (x, y) => {
+      updateZoom(x, y);
+      const spot = this.focusPoint({ x, y });
+      if (spot) zooming._dollyDirection.copy(spot).sub(this.camera.position).normalize();
+    };
     c.addEventListener('change', () => {
-      // Depth precision goes with the near plane: pushing it out as the camera backs off keeps thin
-      // layers (an instrument's front panel over its case) from flickering through each other.
-      const near = THREE.MathUtils.clamp(this.camera.position.distanceTo(c.target) / 60, 2, 40);
-      if (Math.abs(near - this.camera.near) > 0.5) {
-        this.camera.near = near;
-        this.camera.updateProjectionMatrix();
-      }
+      this.syncProjection();
       this.lastMove = performance.now();
       this.invalidate();
       for (const fn of this.cameraListeners) fn();
@@ -278,12 +294,48 @@ export class View {
     c._sphericalDelta.set(0, 0, 0);
   }
 
+  /**
+   * Keeps the projection in step with where the camera is: flat when it looks straight down, and the
+   * near plane pushed out as it backs off (depth precision goes with the near plane, and pushing it out
+   * keeps thin layers, an instrument's front panel over its case, from flickering through each other).
+   */
+  private syncProjection(): void {
+    const cam = this.camera;
+    const offset = cam.position.clone().sub(this.controls.target);
+    const distance = offset.length();
+    if (!(distance > 0)) return;
+    const near = THREE.MathUtils.clamp(distance / 60, 2, 40);
+    const flat = THREE.MathUtils.smoothstep(offset.y / distance, FLAT_FROM, FLAT_AT);
+    const nearMoved = Math.abs(near - cam.near) > 0.5;
+    // A flat view's size on screen goes with `focus`, so it follows every zoom exactly.
+    const focusMoved = flat > 0 && cam.focus !== distance;
+    if (!nearMoved && !focusMoved && flat === cam.flat) return;
+    if (nearMoved) cam.near = near;
+    cam.flat = flat;
+    cam.focus = distance;
+    cam.updateProjectionMatrix();
+  }
+
   /** The point on the level of what the camera looks at, under a spot on the screen (client pixels). */
   private groundPoint(at: Point): THREE.Vector3 | null {
-    const r = this.canvas.getBoundingClientRect();
-    const ndc = new THREE.Vector2(((at.x - r.left) / r.width) * 2 - 1, -((at.y - r.top) / r.height) * 2 + 1);
     const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -this.controls.target.y);
-    return this.rayFrom(ndc).intersectPlane(plane, new THREE.Vector3());
+    return this.rayFrom(this.toNdc(at)).intersectPlane(plane, new THREE.Vector3());
+  }
+
+  /**
+   * The point under a spot on the screen (client pixels) on the plane through what the camera looks
+   * at, square to the view: where the flat and perspective pictures agree.
+   */
+  private focusPoint(at: Point): THREE.Vector3 | null {
+    const target = this.controls.target;
+    const normal = this.camera.position.clone().sub(target).normalize();
+    const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(normal, target);
+    return this.rayFrom(this.toNdc(at)).intersectPlane(plane, new THREE.Vector3());
+  }
+
+  private toNdc(at: Point): THREE.Vector2 {
+    const r = this.canvas.getBoundingClientRect();
+    return new THREE.Vector2(((at.x - r.left) / r.width) * 2 - 1, -((at.y - r.top) / r.height) * 2 + 1);
   }
 
   /**
@@ -320,10 +372,20 @@ export class View {
     this.invalidate();
   }
 
+  /** The line of sight through a point on the screen (normalised device coordinates). */
   rayFrom(ndc: THREE.Vector2): THREE.Ray {
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(ndc, this.camera);
-    return raycaster.ray;
+    const cam = this.camera;
+    if (cam.flat <= 0) {
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(ndc, cam);
+      return raycaster.ray;
+    }
+    // A flattened camera's lines of sight don't all start at the camera; take this one from the near
+    // plane to the far one.
+    cam.updateMatrixWorld();
+    const from = new THREE.Vector3(ndc.x, ndc.y, -1).unproject(cam);
+    const to = new THREE.Vector3(ndc.x, ndc.y, 1).unproject(cam);
+    return new THREE.Ray(from, to.sub(from).normalize());
   }
 
   /** Fits the key light's shadow camera around everything on the desk. */
