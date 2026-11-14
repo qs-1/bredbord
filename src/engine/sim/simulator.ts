@@ -228,6 +228,12 @@ export interface ChipReading {
 export interface Problem {
   partId?: Id;
   message: string;
+  /**
+   * Set when it would harm the part: how bad it is (amps, volts), or 0 when there's no measure. Once
+   * seen, it stays listed at its worst until the circuit changes or the power goes off, even if it only
+   * happens while a blinking output is high.
+   */
+  harm?: number;
 }
 
 export interface SupplyReading {
@@ -414,6 +420,8 @@ export class Simulator {
   private caps: { id: Id; index: number; polarised: boolean }[] = [];
   private transistors: { id: Id; def: TransistorDef; index: number }[] = [];
   private staticProblems: Problem[] = [];
+  /** Harmful problems seen since the last rebuild, by part and kind, each at its worst. */
+  private harms = new Map<string, { problem: Problem; amount: number }>();
   /**
    * Bench supplies in use. Each holds its + at the set voltage until the circuit would draw more than
    * the limit, then lowers it to hold the current at the limit (`volts` is what it's giving now).
@@ -450,6 +458,7 @@ export class Simulator {
    */
   update(doc: CircuitDoc, conn: Connectivity, pressed: ReadonlySet<Id> = new Set(), on?: boolean): void {
     this.keepState();
+    this.harms.clear();
     this.conn = conn;
     const netIndex = (this.netIndex = new Map());
     const netOf = (ref: HoleRef): number => {
@@ -784,6 +793,7 @@ export class Simulator {
           problems.push({
             partId: id,
             message: `Too much current: ${(r.current * 1000).toFixed(0)} mA, limit ${LED_LIMIT * 1000} mA.`,
+            harm: r.current,
           });
       }
       for (const [id, list] of segments) {
@@ -792,6 +802,7 @@ export class Simulator {
           problems.push({
             partId: id,
             message: `Too much current in a segment: ${(worst * 1000).toFixed(0)} mA, limit ${LED_LIMIT * 1000} mA.`,
+            harm: worst,
           });
       }
       for (const t of this.transistors) {
@@ -802,6 +813,7 @@ export class Simulator {
           problems.push({
             partId: t.id,
             message: `Too much collector current: ${(collector * 1000).toFixed(0)} mA, limit ${t.def.maxAmps * 1000} mA.`,
+            harm: collector,
           });
         }
       }
@@ -809,7 +821,7 @@ export class Simulator {
         const v = net.capacitorVolts(c.index);
         capacitors.set(c.id, v);
         if (c.polarised && v < -REVERSE_LIMIT) {
-          problems.push({ partId: c.id, message: `Reversed: − is ${(-v).toFixed(1)} V above +.` });
+          problems.push({ partId: c.id, message: `Reversed: − is ${(-v).toFixed(1)} V above +.`, harm: -v });
         }
       }
       for (const chip of this.chips) chips.set(chip.part.id, { powered: chip.powered, problems: [] });
@@ -819,6 +831,7 @@ export class Simulator {
           problems.push({
             partId: chip.part.id,
             message: `Supply too high: ${vcc.toFixed(1)} V, limit ${MAX_VCC[chip.model.family]} V.`,
+            harm: vcc,
           });
         }
       }
@@ -855,6 +868,7 @@ export class Simulator {
       this.diagnose(chips, problems);
       if (this.tooFast) problems.push({ message: 'Switching too fast to simulate.' });
       else if (this.oscillating) problems.push({ message: 'Doesn’t settle: a logic loop keeps flipping.' });
+      this.keepHarms(problems);
     }
     const conn = this.conn;
     const index = this.netIndex;
@@ -1203,6 +1217,25 @@ export class Simulator {
     }
   };
 
+  /**
+   * Remembers each harmful problem at its worst and puts back the ones not happening right now, so a
+   * problem that comes and goes with a blinking output stays listed instead of flickering.
+   */
+  private keepHarms(problems: Problem[]): void {
+    const now = new Set<string>();
+    for (let i = 0; i < problems.length; i++) {
+      const p = problems[i];
+      if (p.harm === undefined) continue;
+      // Same part, same kind of problem. A measured one's kind is its message up to the reading.
+      const key = `${p.partId ?? ''}|${p.harm > 0 ? p.message.split(':')[0] : p.message}`;
+      const kept = this.harms.get(key);
+      if (!kept || p.harm > kept.amount) this.harms.set(key, { problem: p, amount: p.harm });
+      else problems[i] = kept.problem;
+      now.add(key);
+    }
+    for (const [key, kept] of this.harms) if (!now.has(key)) problems.push(kept.problem);
+  }
+
   private diagnose(readings: Map<Id, ChipReading>, problems: Problem[]): void {
     const volts = this.net!.volts;
     const drivers = new Map<number, { chip: ChipRun; pin: number; value: number }[]>();
@@ -1244,7 +1277,7 @@ export class Simulator {
           if ((supply > 0 ? 1 : 0) === d.value) continue;
           const msg = `${name(d)} drives ${d.value ? 'high' : 'low'}, wired to ${supply > 0 ? '+' : '−'}.`;
           readings.get(d.chip.part.id)!.problems.push(msg);
-          problems.push({ partId: d.chip.part.id, message: msg });
+          problems.push({ partId: d.chip.part.id, message: msg, harm: 0 });
         }
         continue;
       }
@@ -1253,7 +1286,7 @@ export class Simulator {
       if (!high || !low) continue;
       const msg = `Outputs fighting: ${name(high)} high, ${name(low)} low.`;
       for (const d of [high, low]) readings.get(d.chip.part.id)!.problems.push(msg);
-      problems.push({ partId: high.chip.part.id, message: msg });
+      problems.push({ partId: high.chip.part.id, message: msg, harm: 0 });
     }
   }
 }

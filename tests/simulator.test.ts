@@ -390,6 +390,34 @@ describe('Time', () => {
     expect(avg / peak).toBeLessThan(0.8);
   });
 
+  it('keeps a problem listed after it stops, while a blinking output is low', () => {
+    // About 1.6 Hz, with the LED straight on the output: far too much current, but only while high.
+    const b = astable(1000, 47000, 10e-6);
+    b.part('led', 'led-red', [`i${pinHole('NE555', 20, 3).slice(1)}`, 'i30']);
+    b.toRail('j30', 'B-', 34);
+    const tooMuch = (): string | undefined =>
+      b.sim
+        .snapshot()
+        .problems.find((p) => p.partId === 'led')
+        ?.message.match(/^Too much current: (\d+) mA/)?.[1];
+    b.run();
+    expect(tooMuch()).toBeDefined();
+    let sawLow = false;
+    for (let i = 0; i < 90; i++) {
+      b.sim.advance(1 / 60);
+      b.sim.frame();
+      if (b.v(out555) < 1) {
+        sawLow = true;
+        expect(tooMuch()).toBeDefined();
+      }
+    }
+    expect(sawLow).toBe(true);
+    // A change to the circuit starts the list afresh.
+    b.part('r', 'resistor', ['a50', 'a54'], { value: 1000 });
+    b.run();
+    if (b.v(out555) < 1) expect(tooMuch()).toBeUndefined();
+  });
+
   it('times a monostable pulse from a button press', () => {
     // Ben's debounce: TRIG pulled up, a button to ground, THR and DIS together, 100 kΩ and 1 µF.
     const b = new Bench().chip('t', 'NE555', 20);
