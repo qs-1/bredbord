@@ -62,6 +62,8 @@ export interface ItemRef {
   button?: MeterButton;
   /** An oscilloscope's knob or button, if that's what's under the ray. */
   control?: ScopeControl;
+  /** On an oscilloscope's knob: which half of it (-1 left, 1 right). */
+  side?: -1 | 1;
 }
 
 /** Power modules sit at the left end of a board when plugged into the first rail holes. */
@@ -485,7 +487,13 @@ export class SceneSync {
     const scope = this.scopes.pick(ray);
     if (scope && (!best || scope.distance < best.distance)) {
       best = {
-        item: { kind: 'scope', id: scope.id, point: scope.point, ...(scope.control ? { control: scope.control } : {}) },
+        item: {
+          kind: 'scope',
+          id: scope.id,
+          point: scope.point,
+          ...(scope.control ? { control: scope.control } : {}),
+          ...(scope.side ? { side: scope.side } : {}),
+        },
         distance: scope.distance,
       };
     }

@@ -190,6 +190,11 @@ type Gesture =
   | (Pressed & { kind: 'knob'; id: Id; was: number })
   /** A bench supply's knob being turned. */
   | (Pressed & { kind: 'supply-knob'; id: Id; knob: SupplyKnob; was: number })
+  /**
+   * A scope knob held: dragged, it turns a step every few pixels (right or up clockwise); let go
+   * without turning, it's a click on its `side`.
+   */
+  | (Pressed & { kind: 'scope-knob'; id: Id; knob: ScopeKnob; side: -1 | 1; turned: number; moved: boolean })
   /** Placing an LED or capacitor by dragging from one leg's hole to the other's. */
   | { kind: 'span'; from: HoleHit; active: boolean }
   /** A push button held down while the circuit runs. */
@@ -232,6 +237,8 @@ const LEG_REACH = 1.2;
 /** How far (mm) from the pointer a hole is picked when placing: enough to reach across the centre channel. */
 const PLACE_REACH = 4.5;
 const SCOPE_KNOB_SET: ReadonlySet<string> = new Set(['time', 'level', 'volts1', 'volts2']);
+/** How far (pixels, right or up) a scope knob is dragged for each step it turns. */
+const SCOPE_KNOB_PIXELS = 24;
 type Arrow = 'up' | 'down' | 'left' | 'right';
 const ARROWS: Record<string, Arrow | undefined> = {
   arrowup: 'up',
@@ -1079,7 +1086,7 @@ export class Tools {
     );
   }
 
-  /** A click on one of a scope's knobs or buttons. A knob goes a step clockwise (Shift: back); the level knob, pushed, goes to the middle of the signal. */
+  /** A click on one of a scope's knobs or buttons. A knob goes a step clockwise (`back`: anticlockwise); the level knob, pushed, goes to the middle of the signal. */
   pressScope(id: Id, control: ScopeControl, back = false): void {
     if (control === 'run') this.sync.scopes.toggleRun(id);
     else if (control === 'single') this.sync.scopes.single(id);
@@ -1323,6 +1330,16 @@ export class Tools {
       case 'supply-knob':
         this.setSupply(g.id, { [g.knob]: g.was + (e.clientX - g.x - (e.clientY - g.y)) * SUPPLY_STEP[g.knob].pixel });
         return;
+      case 'scope-knob': {
+        if (!g.moved && !movedFrom(g, e)) return;
+        g.moved = true;
+        const steps = Math.trunc((e.clientX - g.x - (e.clientY - g.y)) / SCOPE_KNOB_PIXELS);
+        if (steps !== g.turned) {
+          this.turnScope(g.id, g.knob, steps - g.turned);
+          g.turned = steps;
+        }
+        return;
+      }
       case 'instrument':
         if (!g.moved && !movedFrom(g, e)) return;
         this.moveInstrument(g);
@@ -1462,7 +1479,11 @@ export class Tools {
     }
     if (item.kind === 'scope') {
       if (!item.control) return slide(this.sync.scope(item.id));
-      this.pressScope(item.id, item.control, e.shiftKey);
+      if (SCOPE_KNOB_SET.has(item.control)) {
+        const knob = item.control as ScopeKnob;
+        return capture({ kind: 'scope-knob', ...at, id: item.id, knob, side: item.side ?? 1, turned: 0, moved: false });
+      }
+      this.pressScope(item.id, item.control);
       return capture({ kind: 'control' });
     }
     if (item.knob) {
@@ -1499,6 +1520,10 @@ export class Tools {
         return this.refresh();
       case 'bend':
         this.selection = { kind: 'wire', id: g.wire };
+        return this.refresh();
+      case 'scope-knob':
+        // Let go without turning it: a click. The level knob is pushed; the others step towards the side clicked.
+        if (!g.moved) this.pressScope(g.id, g.knob, g.side < 0);
         return this.refresh();
       case 'supply-knob':
       case 'control':
@@ -2950,13 +2975,13 @@ export class Tools {
     if (item?.kind === 'scope' && item.control === 'level')
       return [
         ['Click', 'Middle of the signal'],
-        ['Scroll', 'Move the level'],
+        ['Drag or scroll', 'Move the level'],
       ];
     if (item?.kind === 'scope' && item.control && SCOPE_KNOB_SET.has(item.control))
       return [
-        ['Click', 'Finer'],
-        ['Shift-click', 'Coarser'],
-        ['Scroll', 'Turn'],
+        ['Drag or scroll', 'Turn'],
+        ['Click right half', 'Finer'],
+        ['Click left half', 'Coarser'],
       ];
     return this.selection?.kind === 'wire'
       ? [

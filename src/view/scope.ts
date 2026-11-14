@@ -111,6 +111,8 @@ export interface ScopeHit {
   id: Id;
   /** The knob or button under the ray, if any. */
   control: ScopeControl | null;
+  /** On a knob: which half of it, as seen from the front (-1 left, 1 right). */
+  side?: -1 | 1;
   distance: number;
   point: THREE.Vector3;
 }
@@ -903,13 +905,17 @@ export class ScopeLayer extends THREE.Group {
       const distance = hit.distanceTo(ray.origin);
       if (best && distance >= best.distance) continue;
       let control: ScopeControl | null = null;
+      let side: -1 | 1 | undefined;
       // Knobs and buttons stick out of the front: test the planes through their faces.
       const at = (depth: number): THREE.Vector3 | null =>
         ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), -(z + FRONT + depth)), new THREE.Vector3());
       const knobFace = at(KNOB_DEPTH * 0.6);
       if (knobFace) {
         for (const [k, c] of Object.entries(SCOPE_KNOBS) as [ScopeKnob, (typeof SCOPE_KNOBS)[ScopeKnob]][]) {
-          if (Math.hypot(knobFace.x - (x + c.x), knobFace.y - c.y) < c.r + 0.8) control = k;
+          if (Math.hypot(knobFace.x - (x + c.x), knobFace.y - c.y) < c.r + 0.8) {
+            control = k;
+            side = knobFace.x < x + c.x ? -1 : 1;
+          }
         }
       }
       const buttonFace = control ? null : at(BUTTON_DEPTH);
@@ -930,8 +936,10 @@ export class ScopeLayer extends THREE.Group {
           false,
         )[0];
         if (first) control = targets.find(([, o]) => o === first.object)?.[0] ?? null;
+        if (first && control && control in SCOPE_KNOBS)
+          side = first.point.x < x + SCOPE_KNOBS[control as ScopeKnob].x ? -1 : 1;
       }
-      best = { id, control, distance, point: hit.clone() };
+      best = { id, control, ...(side ? { side } : {}), distance, point: hit.clone() };
     }
     return best;
   }
