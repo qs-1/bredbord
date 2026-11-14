@@ -111,9 +111,13 @@ opcode test (`tests/dormann.test.ts`, run in CI).
 how long until its next step, or ATmega328P Intel HEX firmware through
 [avr8js](https://github.com/wokwi/avr8js), with its GPIO wired to the simulated board.
 
-**Problems.** The simulator also reports: a chip with no power, outputs fighting, an LED without a
-resistor, an electrolytic capacitor in backwards, a short across the supply, logic that never
-settles.
+**Problems.** The simulator also reports: a chip with no power, outputs fighting, too much current
+through an LED, a transistor or a chip's output pin, a chip's supply above its absolute maximum, an
+electrolytic capacitor in backwards, a short across the supply, a bench supply at its current limit,
+logic that never settles. Ones that would harm a part stay listed at their worst once seen, until the
+circuit changes or the power goes off, so a problem that only happens while a blinking output is high
+doesn't flicker. Output and supply currents are judged once capacitors have charged, so the moment
+one charges doesn't count.
 
 `Simulation` (`src/app/simulation.ts`) drives all of this in real time. It rebuilds the circuit
 when the document changes, advances circuit time each frame (or slower, at a chosen speed), and
