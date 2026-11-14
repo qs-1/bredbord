@@ -296,6 +296,8 @@ export class Tools {
   private pinTimer = 0;
   /** Show + and − on an LED, electrolytic or diode under the pointer, not only while placing it. */
   polarityOnHover = true;
+  /** Pins pointed at on the card's pin list, whose legs glow on the desk. */
+  private cardPins: { id: Id; pins: readonly number[] } | null = null;
   /** What's under way that a click finishes or Esc cancels, in a few words for the hint bar; '' when nothing is. */
   task = '';
   toast: (message: string) => void = () => {};
@@ -2750,6 +2752,7 @@ export class Tools {
           ? (this.legHandles()?.at ?? [])
           : [];
     this.highlights.setHandles(handles, sel?.kind === 'part');
+    this.highlights.setPins(this.cardPinPoints());
     // A board isn't boxed just for being under the pointer: it nearly always is.
     const item = this.hoverItem;
     const hov =
@@ -2764,6 +2767,27 @@ export class Tools {
       hov && hov.kind !== 'wire' ? hov.id : '',
       group.filter((g) => g.kind === 'part').map((g) => g.id),
     );
+  }
+
+  /** Lights the legs of part `id`'s pins (0-based) on the desk, as they're pointed at on its card; null turns them off. */
+  pointCardPins(id: Id | null, pins: readonly number[] = []): void {
+    const next = id && pins.length ? { id, pins } : null;
+    if (!next && !this.cardPins) return;
+    this.cardPins = next;
+    this.updateHighlights();
+    this.view.invalidate();
+  }
+
+  /** Where the legs pointed at on the card go into the board. */
+  private cardPinPoints(): THREE.Vector3[] {
+    const at = this.cardPins;
+    const part = at && this.store.doc.parts.find((p) => p.id === at.id);
+    if (!part || this.drag) return [];
+    return at.pins.flatMap((i) => {
+      const ref = part.pins[i];
+      const world = ref && this.sync.holeWorld(ref);
+      return world ? [world] : [];
+    });
   }
 
   /** + and − on a polarised part's legs while it's placed or moved, and names on the pins of the chip pointed at. */

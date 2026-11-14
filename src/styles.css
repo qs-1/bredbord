@@ -1140,6 +1140,11 @@ select[data-dd] {
   gap: 6px;
   min-width: 0;
 }
+/* a pin pointed at, its leg lit on the desk in the same amber */
+.pinl.on-desk > div:not(.pkg):hover {
+  border-radius: 3px;
+  background: color-mix(in srgb, #f59e0b 28%, transparent);
+}
 .pinl > .l {
   grid-column: 1;
 }

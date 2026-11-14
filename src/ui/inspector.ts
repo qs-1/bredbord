@@ -268,6 +268,8 @@ export class Inspector {
 
   private build(): void {
     this.live = [];
+    // The pin rows go with the old card, and with them whatever leg was lit by pointing at one.
+    this.deps.tools.pointCardPins(null);
     this.stopScope?.();
     this.stopScope = null;
     const box = this.box;
@@ -1024,7 +1026,10 @@ function turns(def: PartDef): boolean {
   return def.kind !== 'power';
 }
 
-/** A chip's pins in two columns, as on a datasheet's top view, with each pin's level while running. */
+/**
+ * A chip's pins in two columns, as on a datasheet's top view, with each pin's level while running.
+ * Pointing at a pin of a part on the desk lights its leg there.
+ */
 function pinList(
   names: readonly string[],
   part: PartDoc | null,
@@ -1043,6 +1048,7 @@ function pinList(
   // Logic chips show their gates inside the outline, wired to their pins.
   if (gates) body.append(gatesDrawing(gates, n));
   if (!inLine) body.append(el('span', 'notch'));
+  list.classList.toggle('on-desk', !!part);
   list.append(body);
   const marks: (HTMLElement | null)[] = [];
   const cell = (i: number, side: 'l' | 'r', row: number): void => {
@@ -1054,6 +1060,11 @@ function pinList(
     d.append(el('b', '', names[i]), el('i', '', String(i + 1).padStart(wide ? 2 : 1, '0')), lv);
     d.title = names[i];
     d.style.gridRow = String(row + 1);
+    // Pointing at a pin lights its leg on the desk.
+    if (part) {
+      d.addEventListener('pointerenter', () => deps.tools.pointCardPins(part.id, [i]));
+      d.addEventListener('pointerleave', () => deps.tools.pointCardPins(null));
+    }
     marks[i] = lv;
     list.append(d);
   };
