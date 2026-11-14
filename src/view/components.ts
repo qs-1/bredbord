@@ -1008,6 +1008,11 @@ const ARM_NEAR = 20.1;
 const ARM_FAR = 26.1;
 /** The tallest thing on it, the barrel jack, and where it sits across the module. */
 const JACK = { x0: OUTER, x1: -15.5, z0: -PCB_WIDTH / 2, z1: -14, top: 11 };
+/**
+ * The module's outline in its local frame, from its first pin: out past the board's end to `outer`,
+ * in to `inner`, and `half` either side of its middle. Other things on the desk keep out of it.
+ */
+export const POWER_OUTLINE = { outer: OUTER, inner: ARM_INNER, half: ARM_FAR } as const;
 /** Where the module's power LED sits, in its local frame. */
 export const POWER_LED = new THREE.Vector3(-9, PCB_TOP + 0.4, -12);
 

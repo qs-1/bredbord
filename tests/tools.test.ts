@@ -150,6 +150,25 @@ describe('desk layout', () => {
     expect(spot.x).toBeLessThan(-spec.length / 2);
   });
 
+  it('keeps instruments off a power module hanging off the end of a board', () => {
+    const doc = createDoc();
+    const spec = boardSpec('bb830');
+    const pins = ['T+1', 'T-1', 'B+1', 'B-1'].map((hole) => ({ board: 'b1', hole }));
+    doc.parts.push({ id: 'p1', def: 'power', pins });
+    const left = Math.min(...pins.map((p) => spec.hole(p.hole)!.x));
+    // The module reaches past the board's left end, so a meter just clear of the board alone overlaps it.
+    const meter = footprint('meter');
+    const want = { x: -spec.length / 2 - DESK_GAP - meter.x / 2, z: 0 };
+    expect(left - 24).toBeLessThan(-spec.length / 2);
+    const at = clearDeskSpot(doc, 'meter', want.x, want.z, { snapping: false });
+    expect(at.valid).toBe(true);
+    const clearOfModule = at.x + meter.x / 2 <= left - 24 - DESK_GAP + 0.1 || Math.abs(at.z) >= meter.z / 2 + 26;
+    expect(clearOfModule).toBe(true);
+    // Dragged with its board, the module counts as part of the board's outline.
+    const span = railSpan(doc, 'b1')!;
+    expect(span.x).toBeGreaterThan(spec.length);
+  });
+
   it('knows the outline of a board with its rails apart', () => {
     const doc = createDoc();
     expect(railSpan(doc, 'b1')).toBeUndefined();

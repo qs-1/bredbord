@@ -4,9 +4,11 @@
 import { boardSpec, type BoardType } from '../../engine/breadboard';
 import type { CircuitDoc, Id } from '../../engine/circuit';
 import { METER_SIZE } from '../../engine/meter';
+import { PARTS } from '../../engine/parts';
 import { clippedTo } from '../../engine/rails';
 import { SCOPE_SIZE } from '../../engine/scope';
 import { SUPPLY_SIZE, SUPPLY_TERMINALS } from '../../engine/supply';
+import { POWER_OUTLINE } from '../../view/components';
 
 /** How close (mm) an edge or middle has to come to another's to snap level with it. */
 const DESK_SNAP = 8;
@@ -150,8 +152,48 @@ export function clearDeskSpot(doc: CircuitDoc, kind: DeskKind, x: number, z: num
       size: footprint(o.kind, 'type' in o ? o.type : undefined),
       gap: kind === 'board' && o.kind === 'board' ? 0 : DESK_GAP,
     }));
+  // A power module hangs off its board's end: that's in the way too, unless it's moving with the board.
+  for (const m of powerBoxes(doc)) {
+    if (m.board === opts.self || opts.ignore?.has(m.board)) continue;
+    others.push({
+      x: (m.x0 + m.x1) / 2,
+      z: (m.z0 + m.z1) / 2,
+      size: { x: m.x1 - m.x0, z: m.z1 - m.z0 },
+      gap: kind === 'board' ? 0 : DESK_GAP,
+    });
+  }
   const at = deskSpot(own, others, x, z, opts.snapping);
   return { x: round1(at.x), z: round1(at.z), valid: at.valid };
+}
+
+/** The desk area a power module covers, and the board it's plugged into. */
+interface PowerBox {
+  board: Id;
+  x0: number;
+  x1: number;
+  z0: number;
+  z1: number;
+}
+
+/** Where every power module sits on the desk: over its board's end, and out past it. */
+function powerBoxes(doc: CircuitDoc): PowerBox[] {
+  const out: PowerBox[] = [];
+  for (const part of doc.parts) {
+    if (PARTS[part.def]?.kind !== 'power') continue;
+    const [first, , , last] = part.pins;
+    const board = first && doc.boards.find((b) => b.id === first.board);
+    const spec = board && boardSpec(board.type);
+    const a = spec?.hole(first.hole);
+    const d = last && spec?.hole(last.hole);
+    if (!board || !a || !d) continue;
+    // At a board's left end (its first pin left of the middle) it reaches out to the left; at the right end, right.
+    const x = board.x + a.x;
+    const [x0, x1] =
+      a.x < 0 ? [x + POWER_OUTLINE.outer, x + POWER_OUTLINE.inner] : [x - POWER_OUTLINE.inner, x - POWER_OUTLINE.outer];
+    const mid = board.z + (a.z + d.z) / 2;
+    out.push({ board: board.id, x0, x1, z0: mid - POWER_OUTLINE.half, z1: mid + POWER_OUTLINE.half });
+  }
+  return out;
 }
 
 /** The box round a board and the rails clipped to it, its middle measured from the board's. */
@@ -162,11 +204,16 @@ export interface RailSpan {
   z: number;
 }
 
-/** The box round a board and the rails clipped to it; none if it has none. */
+/**
+ * The box round a board, the rails clipped to it, and any power module hanging off them: what moves
+ * with the board. None if that's just the board.
+ */
 export function railSpan(doc: CircuitDoc, id: Id): RailSpan | undefined {
   const b = doc.boards.find((x) => x.id === id);
   const rails = clippedTo(doc, id);
-  if (!b || !rails.length) return undefined;
+  const ids = new Set([id, ...rails.map((r) => r.id)]);
+  const modules = powerBoxes(doc).filter((m) => ids.has(m.board));
+  if (!b || (!rails.length && !modules.length)) return undefined;
   let [x0, x1, z0, z1] = [Infinity, -Infinity, Infinity, -Infinity];
   for (const o of [b, ...rails]) {
     const s = boardSpec(o.type);
@@ -174,6 +221,12 @@ export function railSpan(doc: CircuitDoc, id: Id): RailSpan | undefined {
     x1 = Math.max(x1, o.x + s.length / 2);
     z0 = Math.min(z0, o.z - s.width / 2);
     z1 = Math.max(z1, o.z + s.width / 2);
+  }
+  for (const m of modules) {
+    x0 = Math.min(x0, m.x0);
+    x1 = Math.max(x1, m.x1);
+    z0 = Math.min(z0, m.z0);
+    z1 = Math.max(z1, m.z1);
   }
   return { cx: (x0 + x1) / 2 - b.x, cz: (z0 + z1) / 2 - b.z, x: x1 - x0, z: z1 - z0 };
 }
