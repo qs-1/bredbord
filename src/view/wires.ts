@@ -24,6 +24,8 @@ const LEAD_LIFT = H + 7 - BASE_HEIGHT;
 /** Insulation is stripped just above the board surface. */
 const STRIP_AT = H + 0.3;
 const HOLE_DEPTH = 3.2;
+/** The shortest run (mm) that gets a handle in its middle: about three holes, so it sits clear of the handles at its ends. */
+const MID_HANDLE_MIN_RUN = 7;
 /** Sides of a wire drawn as a round tube. */
 const SIDES = 8;
 
@@ -520,6 +522,29 @@ export class WireLayer {
     return e.bends.map(
       (p, k) => new THREE.Vector3(p.x, (route ? heightAt(route, route.plan.corners[k + 1]) : BASE_HEIGHT) + lift, p.z),
     );
+  }
+
+  /**
+   * The middle of each straight run of a wire, where a handle to pull a new bend out of it goes.
+   * `run` counts from the first end: a bend pulled out of run k goes in as the wire's bend k.
+   * Runs too short to take one between their handles get none.
+   */
+  midHandles(id: Id): { at: V; run: number; from: V; to: V }[] {
+    const e = this.entries.get(id);
+    if (!e) return [];
+    const route = e.route;
+    const lift = isLead(e.a, e.b) ? LEAD_LIFT : 0;
+    const path = [e.a, ...e.bends, e.b];
+    const out: { at: V; run: number; from: V; to: V }[] = [];
+    for (let k = 0; k < path.length - 1; k++) {
+      const p = path[k];
+      const q = path[k + 1];
+      if (Math.hypot(q.x - p.x, q.z - p.z) < MID_HANDLE_MIN_RUN) continue;
+      const s = route ? (route.plan.corners[k] + route.plan.corners[k + 1]) / 2 : 0;
+      const y = (route ? heightAt(route, s) : BASE_HEIGHT) + lift;
+      out.push({ at: new THREE.Vector3((p.x + q.x) / 2, y, (p.z + q.z) / 2), run: k, from: p, to: q });
+    }
+    return out;
   }
 
   setHover(id: Id | null): void {

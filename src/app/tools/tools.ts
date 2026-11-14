@@ -179,8 +179,11 @@ type Gesture =
   | (Pressed & { kind: 'pan'; last: { x: number; y: number }; active: boolean })
   /** With Shift: a box dragged out on the screen to select what's inside it. */
   | (Pressed & { kind: 'box'; add: boolean; active: boolean })
-  /** A bend of the selected wire being dragged to a new spot. */
-  | { kind: 'bend'; wire: Id; index: number; moved: boolean }
+  /**
+   * A bend of the selected wire being dragged to a new spot. With `pull`, the press was on the
+   * handle midway along run `index`: the first move puts a new bend in there, which is then dragged.
+   */
+  | { kind: 'bend'; wire: Id; index: number; moved: boolean; pull: boolean }
   /** A bench supply, meter or scope being slid across the desk. */
   | (Pressed & { kind: 'instrument'; id: Id; from: THREE.Vector3; was: { x: number; z: number }; moved: boolean })
   /** A potentiometer's knob being turned while the circuit runs. */
@@ -216,6 +219,14 @@ const SUPPLY_STEP: Record<SupplyKnob, { pixel: number; notch: number; coarse: nu
 };
 /** How close (mm) the pointer has to be to a wire's bend handle to grab it. */
 const HANDLE_REACH = 1.8;
+/**
+ * How close (mm) to a hole's middle the pointer counts as on it, for wires: about the hole as drawn
+ * (its funnel is 1.62 mm across), leaving a strip between neighbours where a bend goes just where
+ * the pointer is. A finger, which can't aim that finely, gets the usual reach instead.
+ */
+const HOLE_MAGNET = 0.9;
+/** How close (mm, across the desk) the pointer has to be to a run of the selected wire to show the handle midway along it. */
+const RUN_REACH = 2;
 /** How close to a leg's handle (mm, off the pointer's ray) grabs it: just under half a hole apart, so side-by-side legs each get their own. */
 const LEG_REACH = 1.2;
 /** How far (mm) from the pointer a hole is picked when placing: enough to reach across the centre channel. */
@@ -1272,10 +1283,14 @@ export class Tools {
         // One undo step for the whole drag, as with moving a supply.
         const first = !g.moved;
         g.moved = true;
+        const pull = g.pull;
+        g.pull = false;
         this.store.update(
           (doc) => {
             const w = doc.wires.find((x) => x.id === g.wire);
-            if (w?.points?.[g.index]) w.points[g.index] = desk(point);
+            if (!w) return;
+            if (pull) (w.points ??= []).splice(g.index, 0, desk(point));
+            else if (w.points?.[g.index]) w.points[g.index] = desk(point);
           },
           { history: first },
         );
@@ -1368,7 +1383,8 @@ export class Tools {
     this.refresh();
     const at = { x: e.clientX, y: e.clientY };
     const handle = this.handleUnderPointer();
-    if (handle) return capture({ kind: 'bend', ...handle, moved: false });
+    if (handle)
+      return capture({ kind: 'bend', wire: handle.wire, index: handle.index, pull: handle.mid, moved: false });
     const leg = this.legUnderPointer();
     if (leg) {
       return capture({
@@ -1540,7 +1556,7 @@ export class Tools {
     this.track(e);
     this.refresh();
     const handle = this.handleUnderPointer();
-    if (handle) {
+    if (handle && !handle.mid) {
       this.store.update((doc) => {
         const w = doc.wires.find((x) => x.id === handle.wire);
         w?.points?.splice(handle.index, 1);
@@ -1661,20 +1677,31 @@ export class Tools {
     return !!this.gesture || this.viewFingers;
   }
 
-  /** The bend handle of the selected wire under the pointer, if any. */
-  private handleUnderPointer(): { wire: Id; index: number } | null {
+  /**
+   * The handle of the selected wire under the pointer, if any: on one of its bends, or (`mid`) midway
+   * along one of its runs, where `index` is the run. A bend's handle wins over a run's beside it.
+   */
+  private handleUnderPointer(): { wire: Id; index: number; mid: boolean } | null {
     const sel = this.selection;
     if (sel?.kind !== 'wire' || !this.pointerInside) return null;
     const ray = this.view.rayFrom(this.ndc);
-    let best: { wire: Id; index: number } | null = null;
+    let best: { wire: Id; index: number; mid: boolean } | null = null;
     let bestDistance = HANDLE_REACH ** 2;
     this.sync.wires.bendHandles(sel.id).forEach((p, index) => {
       const d = ray.distanceSqToPoint(p);
       if (d < bestDistance) {
         bestDistance = d;
-        best = { wire: sel.id, index };
+        best = { wire: sel.id, index, mid: false };
       }
     });
+    if (best) return best;
+    for (const { at, run } of this.sync.wires.midHandles(sel.id)) {
+      const d = ray.distanceSqToPoint(at);
+      if (d < bestDistance) {
+        bestDistance = d;
+        best = { wire: sel.id, index: run, mid: true };
+      }
+    }
     return best;
   }
 
@@ -1709,12 +1736,38 @@ export class Tools {
     return floor ? floor.setY(H) : null;
   }
 
-  /** Bends over a board line up with its holes, so wires run neatly along rows and columns. */
+  /** A bend goes exactly where the pointer is, unless that's on a hole: then it sits over the hole's middle. */
   private snapBend(point: THREE.Vector3 | null): THREE.Vector3 | null {
     if (!point) return null;
-    const near = this.sync.holeNear(point.x, point.z, PITCH);
+    const near = this.sync.holeNear(point.x, point.z, HOLE_MAGNET);
     const hole = near && this.sync.holeWorld(near);
-    return hole ?? new THREE.Vector3(Math.round(point.x), H, Math.round(point.z));
+    return hole ?? new THREE.Vector3(point.x, H, point.z);
+  }
+
+  /**
+   * The run of the selected wire the pointer is beside, for the one handle shown midway along it.
+   * None while something is being dragged, or with the pointer on one of the wire's bends.
+   */
+  private runUnderPointer(): THREE.Vector3 | null {
+    const sel = this.selection;
+    if (sel?.kind !== 'wire' || this.mode !== 'select' || this.gesture?.kind === 'bend') return null;
+    if (this.drag || this.dragIn || this.pasting) return null;
+    const handle = this.handleUnderPointer();
+    if (handle && !handle.mid) return null;
+    const p = this.deskPoint();
+    if (!p) return null;
+    const at = new THREE.Vector3(p.x, 0, p.z);
+    let best: THREE.Vector3 | null = null;
+    let bestDistance = RUN_REACH;
+    for (const m of this.sync.wires.midHandles(sel.id)) {
+      const run = new THREE.Line3(m.from.clone().setY(0), m.to.clone().setY(0));
+      const d = run.closestPointToPoint(at, true, new THREE.Vector3()).distanceTo(at);
+      if (d < bestDistance) {
+        bestDistance = d;
+        best = m.at;
+      }
+    }
+    return best;
   }
 
   /** Bench instrument leads use their physical jack colours. COM and ground are always black. */
@@ -1970,16 +2023,10 @@ export class Tools {
   }
 
   private clickWire(h: HoleHit | null, shift: boolean): void {
-    if (this.pending && !h && !shift) {
-      // Started, and clicked somewhere that isn't a hole: the wire is dropped (the tool stays on).
-      this.pending = null;
-      this.bends = [];
-      this.refresh();
-      return;
-    }
-    if (this.pending && shift) {
-      // Started, and Shift-clicked: the wire bends there.
-      const point = h && shift ? h.world : this.snapBend(this.deskPoint());
+    if (this.pending && (shift || !h)) {
+      // Started, and clicked off the holes (or Shift-clicked, over one): the wire bends there and
+      // carries on, as its ghost shows. Esc, a right-click or its first hole again drops it.
+      const point = h ? h.world : this.snapBend(this.deskPoint());
       if (point && !this.atLastPoint(point)) this.bends.push(new THREE.Vector3(point.x, H, point.z));
       this.refresh();
       return;
@@ -2500,10 +2547,12 @@ export class Tools {
     const ray = this.pointerInside ? this.view.rayFrom(this.ndc) : null;
     const drag = this.drag;
     // Placing, the nearest hole a little way off will do, so the part still shows over the centre channel.
+    // Drawing a wire with a mouse, only on the hole will do: between holes, a click bends the wire there.
     this.hover = ray
       ? this.mode === 'place'
         ? this.sync.pickHole(ray, PLACE_REACH)
-        : this.sync.pickTerminal(ray) || this.sync.pickHole(ray)
+        : this.sync.pickTerminal(ray) ||
+          this.sync.pickHole(ray, this.mode === 'wire' && !this.touching ? HOLE_MAGNET : undefined)
       : null;
     this.hoverItem =
       ray && this.mode === 'select' && !drag && !this.dragIn && !this.pasting ? this.sync.pickItem(ray) : null;
@@ -2744,14 +2793,16 @@ export class Tools {
     const dragging = !!this.drag;
     const sel = dragging ? null : this.selection;
     const group = dragging ? [] : this.group;
-    // Handles on the selected wire's bends (double-click one to take it out), or on a two-legged part's legs.
+    // Handles on the selected wire's bends (double-click one to take it out), and midway along the run
+    // the pointer is beside (drag it to pull a bend out); or on a two-legged part's legs.
     const handles =
       sel?.kind === 'wire'
         ? this.sync.wires.bendHandles(sel.id)
         : sel?.kind === 'part'
           ? (this.legHandles()?.at ?? [])
           : [];
-    this.highlights.setHandles(handles, sel?.kind === 'part');
+    const mid = sel ? this.runUnderPointer() : null;
+    this.highlights.setHandles(handles, sel?.kind === 'part', mid ? [mid] : []);
     this.highlights.setPins(this.cardPinPoints());
     // A board isn't boxed just for being under the pointer: it nearly always is.
     const item = this.hoverItem;
@@ -2865,7 +2916,12 @@ export class Tools {
         return [esc('Done')];
       case 'wire':
         return this.pending
-          ? [['Shift-click', 'Bend'], ['Backspace', 'Undo bend'], esc('Cancel')]
+          ? [
+              ['Click off a hole', 'Bend'],
+              ['Shift-click', 'Bend over a hole'],
+              ['Backspace', 'Undo bend'],
+              esc('Cancel'),
+            ]
           : [['1–8', 'Colour'], esc('Done')];
       case 'place': {
         const def = this.placing;
@@ -2902,6 +2958,11 @@ export class Tools {
         ['Shift-click', 'Coarser'],
         ['Scroll', 'Turn'],
       ];
-    return this.selection?.kind === 'wire' ? [['Double-click', 'Bend']] : [];
+    return this.selection?.kind === 'wire'
+      ? [
+          ['Drag a dot', 'Bend'],
+          ['Double-click a bend', 'Remove'],
+        ]
+      : [];
   }
 }

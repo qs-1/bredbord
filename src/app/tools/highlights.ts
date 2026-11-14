@@ -92,15 +92,31 @@ export class Highlights {
     });
   }
 
-  /** Handles to drag: on a selected wire's bends, or (smaller, so side-by-side legs' don't run together) on a part's legs. */
-  setHandles(points: readonly THREE.Vector3[], small: boolean): void {
-    const key = points.map((p) => `${p.x},${p.y},${p.z}`).join(';');
+  /**
+   * Handles to drag: on a selected wire's bends, or (smaller, so side-by-side legs' don't run together)
+   * on a part's legs. `mids` are smaller ones midway along a wire's runs, to pull a new bend out of.
+   */
+  setHandles(points: readonly THREE.Vector3[], small: boolean, mids: readonly THREE.Vector3[] = []): void {
+    const key = [...points, null, ...mids].map((p) => (p ? `${p.x},${p.y},${p.z}` : '|')).join(';');
     this.replace(this.handles, key, () => {
-      if (!points.length) return null;
+      if (!points.length && !mids.length) return null;
       const group = new THREE.Group();
       const geometry = owned(new THREE.SphereGeometry(small ? 0.75 : 1.15, 16, 10));
       const fill = owned(new THREE.MeshBasicMaterial({ color: palette.accent, depthTest: false }));
       const ring = owned(new THREE.MeshBasicMaterial({ color: palette.mark, depthTest: false }));
+      if (mids.length) {
+        const dot = owned(new THREE.SphereGeometry(0.8, 16, 10));
+        for (const p of mids) {
+          const outer = new THREE.Mesh(dot, ring);
+          outer.position.copy(p);
+          outer.scale.setScalar(1.25);
+          const inner = new THREE.Mesh(dot, fill);
+          inner.position.copy(p);
+          outer.renderOrder = 8;
+          inner.renderOrder = 9;
+          group.add(outer, inner);
+        }
+      }
       for (const p of points) {
         const outer = new THREE.Mesh(geometry, ring);
         outer.position.copy(p);
