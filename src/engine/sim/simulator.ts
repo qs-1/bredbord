@@ -850,10 +850,7 @@ export class Simulator {
         supplies.set(s.doc.id, reading);
         // Not harm, but it's why the circuit gets less than the supply is set to. Not while a big capacitor
         // charging is all that holds it there: that's over in a moment.
-        if (
-          s.shorted ||
-          (reading.cc && this.supplyCurrent(s.plus, true) >= s.doc.limit * (1 - CC_TOLERANCE))
-        )
+        if (s.shorted || (reading.cc && this.supplyCurrent(s.plus, true) >= s.doc.limit * (1 - CC_TOLERANCE)))
           problems.push({
             partId: s.doc.id,
             message: s.shorted

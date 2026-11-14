@@ -808,9 +808,7 @@ describe('Output current', () => {
     return { b, qa: pinHole('74HC595', 20, 15) };
   };
   const outputProblem = (b: Bench, id: string): string | undefined =>
-    b.sim
-      .snapshot()
-      .problems.find((p) => p.partId === id && p.message.startsWith('Too much output current'))?.message;
+    b.sim.snapshot().problems.find((p) => p.partId === id && p.message.startsWith('Too much output current'))?.message;
   const plus = (hole: string): RailName => (hole[0] <= 'e' ? 'T+' : 'B+');
 
   it('warns when an LED with no resistor pulls too much through a 74HC output', () => {
@@ -861,7 +859,9 @@ describe('Output current', () => {
     doc.wires.push({ id: 'w2', a: { board: 's1', hole: '-' }, b: h('T-3'), color: 'black' });
     doc.parts.push({ id: 'r1', def: 'resistor', pins: [h('T+10'), h('T-14')], value: 100 });
     const r = new Simulator().run(doc, new Connectivity(doc), new Set(), true);
-    expect(r.problems.find((p) => p.partId === 's1')?.message).toBe('At its current limit: giving 2.0 V of the 9 V set.');
+    expect(r.problems.find((p) => p.partId === 's1')?.message).toBe(
+      'At its current limit: giving 2.0 V of the 9 V set.',
+    );
     doc.parts[0].value = 1000;
     const fine = new Simulator().run(doc, new Connectivity(doc), new Set(), true);
     expect(fine.problems.some((p) => p.partId === 's1')).toBe(false);
