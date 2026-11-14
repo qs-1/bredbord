@@ -68,9 +68,35 @@ export interface SupplyShown {
 const caseMaterial = new THREE.MeshStandardMaterial({ color: 0xdedcd6, roughness: 0.55 });
 const footMaterial = new THREE.MeshStandardMaterial({ color: 0x1d1e20, roughness: 0.9 });
 const ventMaterial = new THREE.MeshStandardMaterial({ color: 0xa9a7a1, roughness: 0.8 });
-const knobMaterial = new THREE.MeshStandardMaterial({ color: 0xc9ccd1, metalness: 0.85, roughness: 0.32 });
-const knobCapMaterial = new THREE.MeshStandardMaterial({ color: 0xb8bcc2, metalness: 0.9, roughness: 0.22 });
-const markMaterial = new THREE.MeshBasicMaterial({ color: 0x24262a });
+/** The bench instruments' knobs: brushed metal, a polished cap, and a dark line to show where they point. */
+export const knobMaterial = new THREE.MeshStandardMaterial({ color: 0xc9ccd1, metalness: 0.85, roughness: 0.32 });
+export const knobCapMaterial = new THREE.MeshStandardMaterial({ color: 0xb8bcc2, metalness: 0.9, roughness: 0.22 });
+export const markMaterial = new THREE.MeshBasicMaterial({ color: 0x24262a });
+
+/** A knurled knob of radius `r`: a slightly fluted cylinder standing `depth` out of a panel along +z. */
+export function knurledKnob(r: number, depth: number): THREE.BufferGeometry {
+  const knob = new THREE.CylinderGeometry(r, r * 1.04, depth, 48, 1);
+  const pos = knob.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const z = pos.getZ(i);
+    if (Math.hypot(x, z) < r * 0.9) continue;
+    const k = 1 + 0.025 * Math.cos(Math.atan2(z, x) * 24);
+    pos.setXYZ(i, x * k, pos.getY(i), z * k);
+  }
+  knob.computeVertexNormals();
+  return knob.rotateX(Math.PI / 2).translate(0, 0, depth / 2);
+}
+
+/** The polished cap on a knurled knob's face. */
+export function knobCap(r: number, depth: number): THREE.BufferGeometry {
+  return new THREE.CylinderGeometry(r * 0.82, r * 0.82, 0.6, 40).rotateX(Math.PI / 2).translate(0, 0, depth + 0.1);
+}
+
+/** The line on a knob's cap showing where it points. */
+export function knobMark(r: number, depth: number): THREE.BufferGeometry {
+  return new THREE.BoxGeometry(0.9, r * 0.55, 0.3).translate(0, r * 0.48, depth + 0.45);
+}
 const postMetal = new THREE.MeshStandardMaterial({ color: 0xd6c48a, metalness: 1, roughness: 0.3 });
 const postRed = new THREE.MeshStandardMaterial({ color: 0xc8262b, roughness: 0.4 });
 const postBlack = new THREE.MeshStandardMaterial({ color: 0x1b1c1f, roughness: 0.4 });
@@ -179,31 +205,15 @@ function panelGeometry(): THREE.BufferGeometry {
 
 function geometries(): NonNullable<typeof shared> {
   if (shared) return shared;
-  // A knurled knob: a slightly fluted cylinder with a polished cap.
-  const knob = new THREE.CylinderGeometry(KNOB_R, KNOB_R * 1.04, KNOB_DEPTH, 48, 1);
-  const pos = knob.attributes.position;
-  for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i);
-    const z = pos.getZ(i);
-    const r = Math.hypot(x, z);
-    if (r < KNOB_R * 0.9) continue;
-    const a = Math.atan2(z, x);
-    const k = 1 + 0.025 * Math.cos(a * 24);
-    pos.setXYZ(i, x * k, pos.getY(i), z * k);
-  }
-  knob.computeVertexNormals();
-  knob.rotateX(Math.PI / 2).translate(0, 0, KNOB_DEPTH / 2);
   shared = {
     body: new RoundedBoxGeometry(S.x, S.y, S.z, 5, CASE_R).translate(0, S.y / 2 + 2, 0),
     panel: panelGeometry(),
     panelMaterial: new THREE.MeshStandardMaterial({ map: panelTexture(), roughness: 0.62 }),
     foot: new THREE.CylinderGeometry(5, 5.5, 2, 20).translate(0, 1, 0),
     vent: new THREE.BoxGeometry(S.x * 0.42, 0.3, 1.1),
-    knob,
-    knobCap: new THREE.CylinderGeometry(KNOB_R * 0.82, KNOB_R * 0.82, 0.6, 40)
-      .rotateX(Math.PI / 2)
-      .translate(0, 0, KNOB_DEPTH + 0.1),
-    mark: new THREE.BoxGeometry(0.9, KNOB_R * 0.55, 0.3).translate(0, KNOB_R * 0.48, KNOB_DEPTH + 0.45),
+    knob: knurledKnob(KNOB_R, KNOB_DEPTH),
+    knobCap: knobCap(KNOB_R, KNOB_DEPTH),
+    mark: knobMark(KNOB_R, KNOB_DEPTH),
     postBase: new THREE.CylinderGeometry(3.9, 4.3, 3.4, 6).rotateX(Math.PI / 2).translate(0, 0, 1.7),
     postStud: new THREE.CylinderGeometry(1.4, 1.4, 5, 16).rotateX(Math.PI / 2).translate(0, 0, 5),
     postCap: new THREE.CylinderGeometry(3.4, 3.6, 3.6, 24).rotateX(Math.PI / 2).translate(0, 0, 6.4),

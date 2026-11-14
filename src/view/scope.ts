@@ -32,6 +32,7 @@ import {
   type ScopeTerminalName,
   type ScopeTrigger,
 } from '../engine/scope';
+import { knobCap, knobCapMaterial, knobMark, knobMaterial, knurledKnob, markMaterial } from './supply';
 
 const FRONT = S.z / 2;
 /** Corner radius of the case. */
@@ -56,9 +57,11 @@ export type ScopeControl = ScopeKnob | ScopeButton;
 
 /** The control column: centre of the column, and the knobs and buttons in it. */
 const COLUMN_X = RIGHT - 27;
+// The four knobs in a grid, all one size: time and level in a row, each over a volts knob, which
+// is over its input.
 export const SCOPE_KNOBS: Record<ScopeKnob, { x: number; y: number; r: number }> = {
-  time: { x: COLUMN_X - 9, y: TOP - 34.5, r: 7.5 },
-  level: { x: COLUMN_X + 13, y: TOP - 32.5, r: 4.6 },
+  time: { x: SCOPE_TERMINALS.CH1.x, y: TOP - 34.5, r: 5.6 },
+  level: { x: SCOPE_TERMINALS.CH2.x, y: TOP - 34.5, r: 5.6 },
   volts1: { x: SCOPE_TERMINALS.CH1.x, y: TOP - 57.5, r: 5.6 },
   volts2: { x: SCOPE_TERMINALS.CH2.x, y: TOP - 57.5, r: 5.6 },
 };
@@ -421,9 +424,6 @@ function drawScreen(
 const caseMaterial = new THREE.MeshStandardMaterial({ color: 0xdedcd6, roughness: 0.55 });
 const footMaterial = new THREE.MeshStandardMaterial({ color: 0x1d1e20, roughness: 0.9 });
 const ventMaterial = new THREE.MeshStandardMaterial({ color: 0xa9a7a1, roughness: 0.8 });
-const knobMaterial = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, roughness: 0.5 });
-const knobCapMaterial = new THREE.MeshStandardMaterial({ color: 0xbfc4ca, metalness: 0.35, roughness: 0.3 });
-const markMaterial = new THREE.MeshBasicMaterial({ color: 0x1d1f22 });
 const glassMaterial = new THREE.MeshStandardMaterial({
   color: 0x0b0c0d,
   roughness: 0.08,
@@ -543,21 +543,6 @@ function panelGeometry(): THREE.BufferGeometry {
   return geometry.translate(0, PANEL.y, FRONT + 0.05);
 }
 
-/** A ridged encoder knob of radius `r`, standing out of the panel along +z. */
-function encoder(r: number): THREE.BufferGeometry {
-  const knob = new THREE.CylinderGeometry(r, r * 1.05, KNOB_DEPTH, 48, 1);
-  const pos = knob.attributes.position;
-  for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i);
-    const z = pos.getZ(i);
-    if (Math.hypot(x, z) < r * 0.9) continue;
-    const k = 1 + 0.04 * Math.max(0, Math.cos(Math.atan2(z, x) * 20));
-    pos.setXYZ(i, x * k, pos.getY(i), z * k);
-  }
-  knob.computeVertexNormals();
-  return knob.rotateX(Math.PI / 2).translate(0, 0, KNOB_DEPTH / 2);
-}
-
 /** A BNC socket's metal, at about two thirds the size of a real one: hex nut, hollow barrel and bayonet studs. */
 function bncBody(): THREE.BufferGeometry {
   const nut = new THREE.CylinderGeometry(5.6, 5.6, 1.5, 6).rotateX(Math.PI / 2).translate(0, 0, 0.75);
@@ -599,11 +584,10 @@ function geometries(): NonNullable<typeof shared> {
     panelMaterial: new THREE.MeshStandardMaterial({ map: panelTexture(), roughness: 0.62 }),
     feet: mergeGeometries(feet)!,
     vents: mergeGeometries(vents)!,
-    knobs: per((_, r) => encoder(r)),
-    knobCaps: per((_, r) =>
-      new THREE.CylinderGeometry(r * 0.78, r * 0.78, 0.5, 40).rotateX(Math.PI / 2).translate(0, 0, KNOB_DEPTH + 0.05),
-    ),
-    marks: per((_, r) => new THREE.BoxGeometry(0.8, r * 0.5, 0.3).translate(0, r * 0.5, KNOB_DEPTH + 0.35)),
+    // The same knurled metal knobs as the bench supply's.
+    knobs: per((_, r) => knurledKnob(r, KNOB_DEPTH)),
+    knobCaps: per((_, r) => knobCap(r, KNOB_DEPTH)),
+    marks: per((_, r) => knobMark(r, KNOB_DEPTH)),
     button: new RoundedBoxGeometry(SCOPE_BUTTONS.run.w, SCOPE_BUTTONS.run.h, BUTTON_DEPTH, 2, 1).translate(
       0,
       0,
