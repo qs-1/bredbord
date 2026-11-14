@@ -201,6 +201,12 @@ const POT_END = 0.002;
 const REVERSE_LIMIT = 1;
 /** Supply voltage past which each family is damaged (absolute maximum ratings). */
 const MAX_VCC: Record<Family, number> = { LS: 7, HC: 7, CMOS: 6.25, NE555: 18, AVR: 6, C02: 7 };
+/**
+ * Current one output pin can take before it's damaged (absolute maximum ratings). 74LS, the memories and
+ * the 65C02 give no figure, so they get 100 mA, the top of a 74LS's short-circuit current: an LED straight
+ * on one of their outputs is fine, as people often wire them.
+ */
+const MAX_OUT_AMPS: Record<Family, number> = { LS: 0.1, HC: 0.025, CMOS: 0.1, NE555: 0.2, AVR: 0.04, C02: 0.1 };
 /** What a chip draws from its supply just being powered, amps. */
 const IDLE_AMPS: Record<Family, number> = { LS: 0.008, HC: 0.00005, CMOS: 0.03, NE555: 0.003, AVR: 0.02, C02: 0.004 };
 /** What a Nano's 3.3 V pin puts out. */
@@ -229,11 +235,11 @@ export interface Problem {
   partId?: Id;
   message: string;
   /**
-   * Set when it would harm the part: how bad it is (amps, volts), or 0 when there's no measure. Once
-   * seen, it stays listed at its worst until the circuit changes or the power goes off, even if it only
-   * happens while a blinking output is high.
+   * Set for a problem that stays listed once seen (most harm the part): how bad it is (amps, volts), or 0
+   * when there's no measure. It stays at its worst until the circuit changes or the power goes off, even
+   * if it only happens while a blinking output is high.
    */
-  harm?: number;
+  keep?: number;
 }
 
 export interface SupplyReading {
@@ -420,8 +426,8 @@ export class Simulator {
   private caps: { id: Id; index: number; polarised: boolean }[] = [];
   private transistors: { id: Id; def: TransistorDef; index: number }[] = [];
   private staticProblems: Problem[] = [];
-  /** Harmful problems seen since the last rebuild, by part and kind, each at its worst. */
-  private harms = new Map<string, { problem: Problem; amount: number }>();
+  /** Problems to keep listed, seen since the last rebuild, by part and kind, each at its worst. */
+  private kept = new Map<string, { problem: Problem; amount: number }>();
   /**
    * Bench supplies in use. Each holds its + at the set voltage until the circuit would draw more than
    * the limit, then lowers it to hold the current at the limit (`volts` is what it's giving now).
@@ -458,7 +464,7 @@ export class Simulator {
    */
   update(doc: CircuitDoc, conn: Connectivity, pressed: ReadonlySet<Id> = new Set(), on?: boolean): void {
     this.keepState();
-    this.harms.clear();
+    this.kept.clear();
     this.conn = conn;
     const netIndex = (this.netIndex = new Map());
     const netOf = (ref: HoleRef): number => {
@@ -793,7 +799,7 @@ export class Simulator {
           problems.push({
             partId: id,
             message: `Too much current: ${(r.current * 1000).toFixed(0)} mA, limit ${LED_LIMIT * 1000} mA.`,
-            harm: r.current,
+            keep: r.current,
           });
       }
       for (const [id, list] of segments) {
@@ -802,7 +808,7 @@ export class Simulator {
           problems.push({
             partId: id,
             message: `Too much current in a segment: ${(worst * 1000).toFixed(0)} mA, limit ${LED_LIMIT * 1000} mA.`,
-            harm: worst,
+            keep: worst,
           });
       }
       for (const t of this.transistors) {
@@ -813,7 +819,7 @@ export class Simulator {
           problems.push({
             partId: t.id,
             message: `Too much collector current: ${(collector * 1000).toFixed(0)} mA, limit ${t.def.maxAmps * 1000} mA.`,
-            harm: collector,
+            keep: collector,
           });
         }
       }
@@ -821,7 +827,7 @@ export class Simulator {
         const v = net.capacitorVolts(c.index);
         capacitors.set(c.id, v);
         if (c.polarised && v < -REVERSE_LIMIT) {
-          problems.push({ partId: c.id, message: `Reversed: − is ${(-v).toFixed(1)} V above +.`, harm: -v });
+          problems.push({ partId: c.id, message: `Reversed: − is ${(-v).toFixed(1)} V above +.`, keep: -v });
         }
       }
       for (const chip of this.chips) chips.set(chip.part.id, { powered: chip.powered, problems: [] });
@@ -831,16 +837,31 @@ export class Simulator {
           problems.push({
             partId: chip.part.id,
             message: `Supply too high: ${vcc.toFixed(1)} V, limit ${MAX_VCC[chip.model.family]} V.`,
-            harm: vcc,
+            keep: vcc,
           });
         }
       }
-      for (const s of this.supplies)
-        supplies.set(s.doc.id, {
+      for (const s of this.supplies) {
+        const reading = {
           volts: s.volts,
           amps: s.shorted ? s.doc.limit : this.supplyCurrent(s.plus),
           cc: s.shorted || s.volts < s.doc.volts - 1e-3,
-        });
+        };
+        supplies.set(s.doc.id, reading);
+        // Not harm, but it's why the circuit gets less than the supply is set to. Not while a big capacitor
+        // charging is all that holds it there: that's over in a moment.
+        if (
+          s.shorted ||
+          (reading.cc && this.supplyCurrent(s.plus, true) >= s.doc.limit * (1 - CC_TOLERANCE))
+        )
+          problems.push({
+            partId: s.doc.id,
+            message: s.shorted
+              ? 'At its current limit: + and − are joined.'
+              : `At its current limit: giving ${s.volts.toFixed(1)} V of the ${s.doc.volts} V set.`,
+            keep: s.doc.volts - s.volts,
+          });
+      }
       for (const chip of this.clocked) {
         const run = chip.state?.run ?? chip.state?.avr;
         if (!chip.powered || !run) continue;
@@ -865,10 +886,22 @@ export class Simulator {
             message: `Contrast too low: V0 is at ${v0.toFixed(1)} V.`,
           });
       }
-      this.diagnose(chips, problems);
+      // Outputs on a rail or fighting each other have a message of their own already.
+      const clashes = this.diagnose(chips, problems);
+      for (const chip of this.chips) {
+        if (!chip.powered) continue;
+        const worst = this.outputAmps(chip, clashes);
+        const limit = MAX_OUT_AMPS[chip.model.family];
+        if (worst.amps > limit)
+          problems.push({
+            partId: chip.part.id,
+            message: `Too much output current: ${(worst.amps * 1000).toFixed(0)} mA on pin ${worst.pin}, limit ${limit * 1000} mA.`,
+            keep: worst.amps,
+          });
+      }
       if (this.tooFast) problems.push({ message: 'Switching too fast to simulate.' });
       else if (this.oscillating) problems.push({ message: 'Doesn’t settle: a logic loop keeps flipping.' });
-      this.keepHarms(problems);
+      this.keepListed(problems);
     }
     const conn = this.conn;
     const index = this.netIndex;
@@ -953,13 +986,31 @@ export class Simulator {
     this.ccWake = this.time + this.ccGap;
   }
 
-  private supplyCurrent(plus: number): number {
+  /**
+   * The output pin carrying the most current, once capacitors have charged: the moment a capacitor on an
+   * output charges takes a surge that does a chip no harm.
+   */
+  private outputAmps(chip: ChipRun, skip: ReadonlySet<number>): { pin: number; amps: number } {
+    const steady = this.net!.steady;
+    const { fam } = chip;
+    let worst = { pin: 0, amps: 0 };
+    for (let pin = 1; pin < chip.slots.length; pin++) {
+      const d = chip.drives[pin];
+      if (chip.slots[pin] < 0 || d < 0 || skip.has(chip.nets[pin])) continue;
+      const v = steady[chip.nets[pin]];
+      const amps = d ? (chip.gnd + fam.voh(chip.vcc) - v) / fam.roh : (v - chip.gnd - fam.vol) / fam.rol;
+      if (amps > worst.amps) worst = { pin, amps };
+    }
+    return worst;
+  }
+
+  private supplyCurrent(plus: number, settled = false): number {
     const net = this.net!;
-    let amps = net.outflow(plus);
+    let amps = net.outflow(plus, settled);
     for (const chip of this.chips) {
       if (!chip.powered || chip.nets[chip.model.vcc] !== plus) continue;
       amps += IDLE_AMPS[chip.model.family];
-      for (const slot of chip.slots) if (slot >= 0) amps += Math.max(0, net.slotCurrent(slot));
+      for (const slot of chip.slots) if (slot >= 0) amps += Math.max(0, net.slotCurrent(slot, settled));
     }
     return Math.max(0, amps);
   }
@@ -1218,25 +1269,27 @@ export class Simulator {
   };
 
   /**
-   * Remembers each harmful problem at its worst and puts back the ones not happening right now, so a
+   * Remembers each problem to keep at its worst and puts back the ones not happening right now, so a
    * problem that comes and goes with a blinking output stays listed instead of flickering.
    */
-  private keepHarms(problems: Problem[]): void {
+  private keepListed(problems: Problem[]): void {
     const now = new Set<string>();
     for (let i = 0; i < problems.length; i++) {
       const p = problems[i];
-      if (p.harm === undefined) continue;
+      if (p.keep === undefined) continue;
       // Same part, same kind of problem. A measured one's kind is its message up to the reading.
-      const key = `${p.partId ?? ''}|${p.harm > 0 ? p.message.split(':')[0] : p.message}`;
-      const kept = this.harms.get(key);
-      if (!kept || p.harm > kept.amount) this.harms.set(key, { problem: p, amount: p.harm });
+      const key = `${p.partId ?? ''}|${p.keep > 0 ? p.message.split(':')[0] : p.message}`;
+      const kept = this.kept.get(key);
+      if (!kept || p.keep > kept.amount) this.kept.set(key, { problem: p, amount: p.keep });
       else problems[i] = kept.problem;
       now.add(key);
     }
-    for (const [key, kept] of this.harms) if (!now.has(key)) problems.push(kept.problem);
+    for (const [key, kept] of this.kept) if (!now.has(key)) problems.push(kept.problem);
   }
 
-  private diagnose(readings: Map<Id, ChipReading>, problems: Problem[]): void {
+  /** Finds chips without power, inputs left open and outputs that clash. Returns the nets of the clashes. */
+  private diagnose(readings: Map<Id, ChipReading>, problems: Problem[]): Set<number> {
+    const clashes = new Set<number>();
     const volts = this.net!.volts;
     const drivers = new Map<number, { chip: ChipRun; pin: number; value: number }[]>();
     for (const chip of this.chips) {
@@ -1277,7 +1330,8 @@ export class Simulator {
           if ((supply > 0 ? 1 : 0) === d.value) continue;
           const msg = `${name(d)} drives ${d.value ? 'high' : 'low'}, wired to ${supply > 0 ? '+' : '−'}.`;
           readings.get(d.chip.part.id)!.problems.push(msg);
-          problems.push({ partId: d.chip.part.id, message: msg, harm: 0 });
+          problems.push({ partId: d.chip.part.id, message: msg, keep: 0 });
+          clashes.add(n);
         }
         continue;
       }
@@ -1286,7 +1340,9 @@ export class Simulator {
       if (!high || !low) continue;
       const msg = `Outputs fighting: ${name(high)} high, ${name(low)} low.`;
       for (const d of [high, low]) readings.get(d.chip.part.id)!.problems.push(msg);
-      problems.push({ partId: high.chip.part.id, message: msg, harm: 0 });
+      problems.push({ partId: high.chip.part.id, message: msg, keep: 0 });
+      clashes.add(n);
     }
+    return clashes;
   }
 }

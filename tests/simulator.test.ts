@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { blinkerDoc, counterDoc, exampleDoc, registerDoc } from '../src/app/example';
 import { createDoc } from '../src/engine/circuit';
+import type { RailName } from '../src/engine/breadboard';
 import { Connectivity } from '../src/engine/netlist';
 import {
   dipFootprint,
@@ -580,7 +581,7 @@ describe('Time', () => {
       doc.wires.push({ id: 'w3', a: h('T+20'), b: h('T-20'), color: 'yellow' });
       const r = new Simulator().run(doc, new Connectivity(doc), new Set(), true);
       const s = r.supplies.get('s1')!;
-      expect(r.problems).toEqual([]);
+      expect(r.problems.map((p) => p.message)).toEqual(['At its current limit: + and − are joined.']);
       expect(s).toEqual({ volts: 0, amps: 0.5, cc: true });
     });
 
@@ -589,10 +590,14 @@ describe('Time', () => {
       doc.parts.push({ id: 'r1', def: 'resistor', pins: [h('T+10'), h('a10')], value: 10 });
       doc.parts.push({ id: 'c1', def: 'cap-electrolytic', pins: [h('b10'), h('T-12')], value: 1000e-6 });
       const sim = new Simulator();
-      const first = sim.run(doc, new Connectivity(doc), new Set(), true).supplies.get('s1')!;
+      const result = sim.run(doc, new Connectivity(doc), new Set(), true);
+      const first = result.supplies.get('s1')!;
       expect(first.cc).toBe(true);
       expect(first.amps).toBeCloseTo(0.1, 3);
+      // Only for a moment, so it isn't listed as a problem.
+      expect(result.problems).toEqual([]);
       sim.advance(1);
+      expect(sim.snapshot().problems).toEqual([]);
       const later = sim.snapshot().supplies.get('s1')!;
       expect(later.cc).toBe(false);
       expect(later.volts).toBe(5);
@@ -790,5 +795,75 @@ describe('Time going backwards', () => {
     const r = sim.snapshot();
     expect(r.problems).toEqual([]);
     for (const chip of doc.parts) for (const pin of chip.pins) expect(Math.abs(r.volts(pin) ?? 0)).toBeLessThan(10);
+  });
+});
+
+describe('Output current', () => {
+  /** A 74HC595 with its outputs on (OE low), all low, and QA (pin 15) left for the test to load. */
+  const register = (): { b: Bench; qa: string } => {
+    const b = new Bench().chip('sr', '74HC595', 20);
+    const pin = (n: number): string => sameStrip(pinHole('74HC595', 20, n));
+    b.toRail(pin(13), pinHole('74HC595', 20, 13)[0] <= 'e' ? 'T-' : 'B-', 20); // OE
+    b.toRail(pin(10), pinHole('74HC595', 20, 10)[0] <= 'e' ? 'T+' : 'B+', 20); // SRCLR
+    return { b, qa: pinHole('74HC595', 20, 15) };
+  };
+  const outputProblem = (b: Bench, id: string): string | undefined =>
+    b.sim
+      .snapshot()
+      .problems.find((p) => p.partId === id && p.message.startsWith('Too much output current'))?.message;
+  const plus = (hole: string): RailName => (hole[0] <= 'e' ? 'T+' : 'B+');
+
+  it('warns when an LED with no resistor pulls too much through a 74HC output', () => {
+    const { b, qa } = register();
+    // LED from + straight into QA, which sinks it.
+    b.part('led', 'led-red', [railNear(plus(qa), 40), `${qa[0] <= 'e' ? 'c' : 'h'}${qa.slice(1)}`]);
+    b.run();
+    expect(outputProblem(b, 'sr')).toMatch(/on pin 15, limit 25 mA\.$/);
+  });
+
+  it('stays quiet with a resistor in line', () => {
+    const { b, qa } = register();
+    const row = qa[0] <= 'e' ? 'c' : 'h';
+    b.part('led', 'led-red', [railNear(plus(qa), 40), `${row}45`]);
+    b.part('r', 'resistor', [`${row === 'c' ? 'a' : 'j'}45`, `${row}${qa.slice(1)}`], { value: 330 });
+    b.run();
+    expect(b.sim.snapshot().leds.get('led')!.current).toBeGreaterThan(0.005);
+    expect(outputProblem(b, 'sr')).toBeUndefined();
+  });
+
+  it('takes no notice of a capacitor on an output charging', () => {
+    const { b, qa } = register();
+    const row = qa[0] <= 'e' ? 'c' : 'h';
+    // Charged to + while QA is low: QA pulls hard on it at first, as it would on a real board.
+    b.part('c', 'cap-ceramic', [railNear(plus(qa), 40), `${row}${qa.slice(1)}`], { value: 100e-6 });
+    b.run();
+    expect(outputProblem(b, 'sr')).toBeUndefined();
+  });
+
+  it('lets a 555 drive an LED on 5 V without an output warning', () => {
+    // Its output can take 200 mA; the LED is what suffers.
+    const b = new Bench().chip('t', 'NE555', 20);
+    const strip = (pin: number): string => pinHole('NE555', 20, pin);
+    b.toRail(sameStrip(strip(4)), 'B+', 20);
+    b.toRail(sameStrip(strip(2)), 'T-', 20); // TRIG low: output high
+    b.part('led', 'led-red', [`i${strip(3).slice(1)}`, 'i30']);
+    b.toRail('j30', 'B-', 34);
+    b.run();
+    expect(b.v(`j${strip(3).slice(1)}`)).toBeGreaterThan(2);
+    expect(outputProblem(b, 't')).toBeUndefined();
+    expect(b.sim.snapshot().problems.some((p) => p.partId === 'led')).toBe(true);
+  });
+
+  it('says when a bench supply is at its current limit', () => {
+    const doc = createDoc();
+    doc.supplies = [{ id: 's1', x: -150, z: 0, volts: 9, limit: 0.02 }];
+    doc.wires.push({ id: 'w1', a: { board: 's1', hole: '+' }, b: h('T+3'), color: 'red' });
+    doc.wires.push({ id: 'w2', a: { board: 's1', hole: '-' }, b: h('T-3'), color: 'black' });
+    doc.parts.push({ id: 'r1', def: 'resistor', pins: [h('T+10'), h('T-14')], value: 100 });
+    const r = new Simulator().run(doc, new Connectivity(doc), new Set(), true);
+    expect(r.problems.find((p) => p.partId === 's1')?.message).toBe('At its current limit: giving 2.0 V of the 9 V set.');
+    doc.parts[0].value = 1000;
+    const fine = new Simulator().run(doc, new Connectivity(doc), new Set(), true);
+    expect(fine.problems.some((p) => p.partId === 's1')).toBe(false);
   });
 });

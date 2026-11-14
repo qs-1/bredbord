@@ -623,29 +623,33 @@ export class Network {
     return sign * v;
   }
 
-  /** Current flowing out of net `n` into everything wired to it (capacitors charging aside). */
-  outflow(n: number): number {
+  /**
+   * Current flowing out of net `n` into everything wired to it (capacitors charging aside). `settled`:
+   * what it will be once the capacitors have charged, from the voltages the nets are heading to.
+   */
+  outflow(n: number, settled = false): number {
+    const v = settled ? this.steady : this.volts;
     let i = 0;
     for (let k = 0; k < this.bA.length; k++) {
       if (this.bA[k] !== n && this.bB[k] !== n) continue;
-      const flow = this.bG[k] * (this.at(this.bA[k]) - this.at(this.bB[k]) - this.bV[k]);
+      const flow = this.bG[k] * (this.at(this.bA[k], v) - this.at(this.bB[k], v) - this.bV[k]);
       i += this.bA[k] === n ? flow : -flow;
     }
     for (let d = 0; d < this.dA.length; d++) {
-      if (this.dA[d] === n) i += this.diodeCurrent(d);
-      else if (this.dB[d] === n) i -= this.diodeCurrent(d);
+      if (this.dA[d] === n) i += this.diodeCurrent(d, v);
+      else if (this.dB[d] === n) i -= this.diodeCurrent(d, v);
     }
     for (let t = 0; t < this.tP.length; t++) {
-      if (this.tP[t] === n) i += this.transportCurrent(t);
-      else if (this.tQ[t] === n) i -= this.transportCurrent(t);
+      if (this.tP[t] === n) i += this.transportCurrent(t, v);
+      else if (this.tQ[t] === n) i -= this.transportCurrent(t, v);
     }
-    for (let k = 0; k < this.sNet.length; k++) if (this.sNet[k] === n) i += this.sG[k] * (this.at(n) - this.sV[k]);
+    for (let k = 0; k < this.sNet.length; k++) if (this.sNet[k] === n) i += this.sG[k] * (this.at(n, v) - this.sV[k]);
     return i;
   }
 
   /** The transistor's transport current, amps from collector to emitter (emitter to collector in a PNP). */
-  private transportCurrent(t: number): number {
-    return this.tBF[t] * this.diodeCurrent(this.tF[t]) - this.tBR[t] * this.diodeCurrent(this.tR[t]);
+  private transportCurrent(t: number, v = this.volts): number {
+    return this.tBF[t] * this.diodeCurrent(this.tF[t], v) - this.tBR[t] * this.diodeCurrent(this.tR[t], v);
   }
 
   /** Base and collector current of a transistor, amps flowing into the part (out of it for a PNP). */
@@ -654,20 +658,20 @@ export class Network {
     return { base, collector: this.transportCurrent(t) - this.diodeCurrent(this.tR[t]) };
   }
 
-  /** Current a slot pushes into its net (negative when it sinks). */
-  slotCurrent(slot: number): number {
-    return this.sG[slot] * (this.sV[slot] - this.at(this.sNet[slot]));
+  /** Current a slot pushes into its net (negative when it sinks); `settled` as for outflow. */
+  slotCurrent(slot: number, settled = false): number {
+    return this.sG[slot] * (this.sV[slot] - this.at(this.sNet[slot], settled ? this.steady : this.volts));
   }
 
-  /** Current through a diode right now, amps. */
-  diodeCurrent(d: number): number {
-    return this.dOn[d] ? Math.max(0, this.dG[d] * (this.at(this.dA[d]) - this.at(this.dB[d]) - this.dVf[d])) : 0;
+  /** Current through a diode, amps: right now, or at the voltages `v` given. */
+  diodeCurrent(d: number, v = this.volts): number {
+    return this.dOn[d] ? Math.max(0, this.dG[d] * (this.at(this.dA[d], v) - this.at(this.dB[d], v) - this.dVf[d])) : 0;
   }
 
   // ---- solving ----
 
-  private at(n: number): number {
-    const v = this.volts[n];
+  private at(n: number, volts = this.volts): number {
+    const v = volts[n];
     return Number.isFinite(v) ? v : 0;
   }
 
