@@ -1,5 +1,6 @@
 // What the tools draw over the scene: soft boxes round what's selected and what's under the pointer,
-// handles on a selected wire's bends and a selected part's legs, and the ghost of what's being placed.
+// handles on a selected wire's bends and a selected part's legs, the ghost of what's being placed, and a
+// glow on the legs whose pins are pointed at on the card.
 // Each is rebuilt only when what it shows changes.
 
 import * as THREE from 'three';
@@ -18,6 +19,8 @@ const PART_PAD = 0.35;
 /** How see-through the box round a selected part is: its grey sides, and its ink edges. */
 const SELECTED = { fill: 0.1, edge: 0.9 };
 const HOVERED = { fill: 0.04, edge: 0.4 };
+/** The glow on a leg pointed at in the card's pin list: amber, round the leg from the hole up past a DIP's shoulder. */
+const PIN_GLOW = { color: 0xf59e0b, radius: 0.85, height: 2.4 };
 
 /** Something drawn over the scene, and what it was drawn from. */
 interface Slot {
@@ -59,6 +62,7 @@ export class Highlights {
   private readonly group: Slot = { key: '', obj: null };
   private readonly handles: Slot = { key: '', obj: null };
   private readonly preview: Slot = { key: '', obj: null };
+  private readonly pins: Slot = { key: '', obj: null };
 
   constructor(
     private readonly view: View,
@@ -106,6 +110,50 @@ export class Highlights {
         outer.renderOrder = 8;
         inner.renderOrder = 9;
         group.add(outer, inner);
+      }
+      return group;
+    });
+  }
+
+  /**
+   * Amber glow round the legs whose pins are pointed at on the card's pin list. Each leg gets a
+   * see-through column from the hole up past its shoulder, and a fainter copy drawn over everything,
+   * so a leg on the far side of a chip still shows through the body.
+   */
+  setPins(points: readonly THREE.Vector3[]): void {
+    const key = points.map((p) => `${p.x},${p.y},${p.z}`).join(';');
+    this.replace(this.pins, key, () => {
+      if (!points.length) return null;
+      const group = new THREE.Group();
+      const geometry = owned(new THREE.CylinderGeometry(PIN_GLOW.radius, PIN_GLOW.radius, PIN_GLOW.height, 20));
+      const ring = owned(new THREE.RingGeometry(PIN_GLOW.radius, PIN_GLOW.radius + 0.45, 32).rotateX(-Math.PI / 2));
+      const glow = (opacity: number, depthTest: boolean): THREE.MeshBasicMaterial =>
+        owned(
+          new THREE.MeshBasicMaterial({
+            color: PIN_GLOW.color,
+            transparent: true,
+            opacity,
+            depthTest,
+            depthWrite: false,
+          }),
+        );
+      const front = glow(0.65, true);
+      const behind = glow(0.28, false);
+      const halo = glow(0.9, true);
+      for (const p of points) {
+        for (const [material, order] of [
+          [behind, 6],
+          [front, 7],
+        ] as const) {
+          const column = new THREE.Mesh(geometry, material);
+          column.position.set(p.x, p.y + PIN_GLOW.height / 2 - 0.1, p.z);
+          column.renderOrder = order;
+          group.add(column);
+        }
+        const flat = new THREE.Mesh(ring, halo);
+        flat.position.set(p.x, p.y + 0.06, p.z);
+        flat.renderOrder = 7;
+        group.add(flat);
       }
       return group;
     });
