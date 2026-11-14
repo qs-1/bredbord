@@ -1057,8 +1057,13 @@ function pinList(
     lv.hidden = true;
     // Numbers in a column with two-digit ones get a leading 0, so the names line up.
     const wide = side === 'r' ? n >= 10 : half >= 10;
-    d.append(el('b', '', names[i]), el('i', '', String(i + 1).padStart(wide ? 2 : 1, '0')), lv);
-    d.title = names[i];
+    const name = el('b', '', names[i]);
+    d.append(name, el('i', '', String(i + 1).padStart(wide ? 2 : 1, '0')), lv);
+    // The full name as a tooltip, only when it's cut short; otherwise it would just repeat the row.
+    d.addEventListener('pointerenter', () => {
+      if (name.scrollWidth > name.clientWidth) d.title = names[i];
+      else d.removeAttribute('title');
+    });
     d.style.gridRow = String(row + 1);
     // Pointing at a pin lights its leg on the desk.
     if (part) {
