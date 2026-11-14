@@ -72,6 +72,9 @@ vec3 deskTableToView(vec2 t) {
 
 /** Layers that only the passes drawing the shadow map and the lighting table see. */
 const SHADOW_LAYER = 31;
+
+/** How far above the desk its shadows are looked up from, in mm: just clear of a board's foot resting on it. */
+const DESK_SHADOW_LIFT = 0.05;
 const LIGHT_LAYER = 30;
 
 export class Desk {
@@ -234,11 +237,14 @@ export class Desk {
     u.uShadowMap.value = depth;
     u.uFromShadow.value.copy(shadow.matrix).invert();
     u.uSize.value.copy(size);
-    u.uPlaneY.value = shadow.normalBias;
-    u.uBias.value = shadow.bias;
+    // The light's own biases (about 1 mm between them) keep parts from shadowing themselves in specks,
+    // but on the desk they'd leave a lit strip along the foot of every board. The desk is flat and its
+    // depth here is exact, so it's looked up from just above it, with no bias.
+    u.uPlaneY.value = DESK_SHADOW_LIFT;
+    u.uBias.value = 0;
     u.uRadius.value = shadow.radius;
     u.uIntensity.value = shadow.intensity;
-    this.uniforms.uShadowLift.value = shadow.normalBias;
+    this.uniforms.uShadowLift.value = DESK_SHADOW_LIFT;
     r.setRenderTarget(this.shadowTarget);
     r.render(this.shadowScene, this.quadCamera);
   }
