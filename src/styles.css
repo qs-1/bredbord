@@ -369,6 +369,7 @@ kbd {
   text-align: left;
   white-space: nowrap;
   color: var(--ink);
+  text-decoration: none;
 }
 .mi:hover {
   background: var(--raised);
