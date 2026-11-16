@@ -207,6 +207,11 @@ export class Desk {
     this.lightStale = true;
   }
 
+  /** The graphics card lost what was drawn into the light and shadow pictures: draw them again. */
+  redrawAll(): void {
+    this.lightStale = true;
+  }
+
   /** Brings the desk's shadows and light up to date. Call before each render. */
   prepare(scene: THREE.Scene): void {
     const r = this.renderer;

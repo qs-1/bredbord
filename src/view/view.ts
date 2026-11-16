@@ -130,9 +130,15 @@ export class View {
     const s = this.scene;
     if (!transparent) s.background = this.background;
     s.fog = new THREE.Fog(this.background, 1500, 4500);
-    const pmrem = new THREE.PMREMGenerator(r);
-    s.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-    pmrem.dispose();
+    this.bakeEnvironment();
+    // A phone takes the graphics card's memory back from an app left in the background. three.js
+    // rebuilds what it can on its own; what was drawn on the card itself (the room's reflections, the
+    // desk's light and shadows) has to be drawn again, and the view only draws when asked.
+    canvas.addEventListener('webglcontextrestored', () => {
+      this.bakeEnvironment();
+      this.desk?.redrawAll();
+      this.invalidateShadows();
+    });
 
     this.key.castShadow = true;
     this.key.shadow.mapSize.set(2048, 2048);
@@ -208,6 +214,15 @@ export class View {
     this.scene.environmentIntensity = t.env;
     this.desk?.setTheme(theme);
     this.invalidate();
+  }
+
+  /** The soft room light that parts reflect, drawn once on the graphics card. */
+  private bakeEnvironment(): void {
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    const old = this.scene.environment;
+    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    old?.dispose();
+    pmrem.dispose();
   }
 
   /** Ask for a redraw on the next frame. */

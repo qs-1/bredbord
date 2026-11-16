@@ -21,7 +21,7 @@ import { HoverCard } from './hover';
 import { Inspector, WIRE_CSS } from './inspector';
 import { Issues } from './issues';
 import { Library } from './library';
-import { closeMenus, installMenus, openSub } from './menus';
+import { anyMenuOpen, closeMenus, installMenus, openSub } from './menus';
 import { logoSVG, paintIcons, snapPixels, wireIcon } from './px';
 import { SelectionBar } from './selection-bar';
 import { readFlag, readSetting, writeFlag, writeSetting } from './settings';
@@ -287,6 +287,13 @@ export class UI {
     syncFold();
     if (PHONE) this.bindPhone(work);
 
+    // The on-screen keyboard shrinks the page (see the viewport tag in app/index.html): keep the box
+    // being typed in on screen once it has.
+    window.visualViewport?.addEventListener('resize', () => {
+      const f = document.activeElement;
+      if (f instanceof HTMLInputElement || f instanceof HTMLTextAreaElement) f.scrollIntoView({ block: 'nearest' });
+    });
+
     // The parts or Code panel lies over the right of the view: framing (F, Home) centres in what's
     // left of it.
     this.view.coveredBottom = () => parseFloat(getComputedStyle(work).getPropertyValue('--dh')) || 0;
@@ -330,12 +337,89 @@ export class UI {
       fold.addEventListener('pointerup', up);
       fold.addEventListener('pointercancel', up);
     });
-    // A tap on the card's header (not on a button in it) makes the card taller, or short again.
+    // The card starts as just its header, out of the desk's way. Its header is the handle: dragged up
+    // it shows as much as it's pulled to, dragged down it shuts again, and from shut a drag down puts
+    // the selection away. A tap opens or shuts it. The state stays as parts are picked one after another.
     const card = $('#card');
-    card.addEventListener('click', (e) => {
-      const t = e.target as Element;
-      if (t.closest('.hd') && !t.closest('button, input, select, a')) card.classList.toggle('tall');
+    work.dataset.card = 'peek';
+    card.addEventListener('pointerdown', (e) => {
+      const hd = (e.target as Element).closest<HTMLElement>('.hd');
+      if (!hd || (e.target as Element).closest('button, input, select, a')) return;
+      const area = work.getBoundingClientRect();
+      const peek = hd.offsetHeight;
+      const from = card.offsetHeight;
+      let moved = false;
+      card.setPointerCapture(e.pointerId);
+      const move = (ev: PointerEvent): void => {
+        if (!moved && Math.abs(ev.clientY - e.clientY) < 6) return;
+        moved = true;
+        const h = Math.min(area.height * 0.85, Math.max(peek, from + e.clientY - ev.clientY));
+        work.dataset.card = 'open';
+        work.style.setProperty('--card-max', `${Math.round(h)}px`);
+      };
+      const up = (ev: PointerEvent): void => {
+        card.removeEventListener('pointermove', move);
+        card.removeEventListener('pointerup', up);
+        card.removeEventListener('pointercancel', up);
+        if (!moved) {
+          work.style.removeProperty('--card-max');
+          work.dataset.card = work.dataset.card === 'peek' ? 'open' : 'peek';
+        } else if (from <= peek + 2 && ev.clientY - e.clientY > 24) {
+          work.dataset.card = 'peek';
+          this.tools.deselect();
+        } else if (card.offsetHeight < peek + 32) work.dataset.card = 'peek';
+      };
+      card.addEventListener('pointermove', move);
+      card.addEventListener('pointerup', up);
+      card.addEventListener('pointercancel', up);
     });
+    // How much of the desk's foot the card covers, so the hint and the problems button sit above it.
+    const cover = (): void =>
+      work.style.setProperty('--ch', `${card.classList.contains('open') ? card.offsetHeight : 0}px`);
+    new ResizeObserver(cover).observe(card);
+    new MutationObserver(cover).observe(card, { attributes: true, attributeFilter: ['class'] });
+
+    // Back (the phone's button or swipe) shuts what's open, one thing at a time, before it leaves.
+    // One extra step is kept in the history only while something is open, for Back to use up.
+    let guarded = false;
+    let ours = false;
+    const shut = (): boolean => {
+      if (anyMenuOpen()) closeMenus();
+      else if (this.code.isOpen) this.code.close();
+      else if (this.tools.task) this.tools.cancel();
+      else if (!work.classList.contains('collapsed')) setOpen(false);
+      else if (this.tools.hasSelection) this.tools.deselect();
+      else return false;
+      return true;
+    };
+    const somethingOpen = (): boolean =>
+      anyMenuOpen() ||
+      this.code.isOpen ||
+      !!this.tools.task ||
+      !work.classList.contains('collapsed') ||
+      this.tools.hasSelection;
+    const guard = (): void => {
+      const need = somethingOpen();
+      if (need && !guarded) {
+        guarded = true;
+        history.pushState({ bredbord: 'open' }, '');
+      } else if (!need && guarded) {
+        guarded = false;
+        ours = true;
+        history.back();
+      }
+    };
+    window.addEventListener('popstate', () => {
+      if (ours) {
+        ours = false;
+        return;
+      }
+      guarded = false;
+      shut();
+      guard();
+    });
+    this.tools.onChange(() => guard());
+    document.addEventListener('click', () => window.setTimeout(guard), true);
     $('#menu-more').addEventListener('click', (e) => {
       const item = (e.target as Element).closest<HTMLElement>('[data-more]');
       if (!item) return;
@@ -712,9 +796,13 @@ export class UI {
   /** The hint bar while something is under way, with Cancel; why a spot won't do takes its place. */
   private refreshHint(): void {
     const t = this.tools;
-    const text = t.notice || t.task;
+    let text = t.notice || t.task;
+    // Fingers tap; they don't click.
+    if (matchMedia('(pointer: coarse)').matches) text = text.replace(/\bClick\b/g, 'Tap').replace(/\bclick\b/g, 'tap');
     const hint = $('#hint');
     hint.classList.toggle('show', !!text);
+    // On a phone the card steps aside while something is being put down, so the hint and its Cancel show.
+    $('#work').classList.toggle('tasking', !!t.task);
     if (text) setText($('#hint-t'), text);
   }
 

@@ -39,6 +39,10 @@ html,
 body {
   height: 100%;
 }
+html {
+  /* A drag that starts on a bar or a sheet can't pull the page down to reload it, or bounce it. */
+  overscroll-behavior: none;
+}
 body {
   margin: 0;
   display: flex;
@@ -49,6 +53,24 @@ body {
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
+  /* A finger scrolls lists but can't pinch the whole page bigger, and a double tap doesn't zoom it. */
+  touch-action: pan-x pan-y;
+  -webkit-tap-highlight-color: transparent;
+}
+/* On touch screens a long press on a button or label shouldn't select its words and bring up the copy
+   menu. Text that's there to be read or edited stays selectable. */
+@media (pointer: coarse) {
+  body {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  input,
+  textarea,
+  [contenteditable],
+  .hex {
+    -webkit-user-select: text;
+    user-select: text;
+  }
 }
 button {
   font: inherit;
@@ -110,6 +132,8 @@ kbd {
   grid-template-rows: 48px 44px minmax(0, 1fr);
   /* An iPad held upright is 768 wide. */
   min-width: 760px;
+  /* Clear of a notch, rounded corners and the system bars (all zero on a computer). */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 /* ---------- bar 1: the design and running it ---------- */
@@ -2552,7 +2576,11 @@ select[data-dd] {
 }
 .phone .app {
   min-width: 0;
+  /* One column no wider than the screen, so a long circuit name can't push Power and the menu off it. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 48px minmax(0, 1fr) auto;
+  /* The bottom bar clears the gesture bar itself, so its own colour runs under it. */
+  padding-bottom: 0;
   grid-template-areas: 'top' 'work' 'tools';
 }
 .phone .bar1 {
@@ -2583,6 +2611,7 @@ select[data-dd] {
 }
 .phone #name {
   max-width: 100%;
+  text-overflow: ellipsis;
 }
 .phone .bar1 .grow {
   display: none;
@@ -2685,17 +2714,33 @@ select[data-dd] {
   right: 0;
   bottom: var(--dh);
   width: auto !important;
-  max-height: 40%;
+  max-height: var(--card-max, 50%);
   border-radius: 12px 12px 0 0;
   border-bottom: 0;
   transform: translateY(8px);
 }
-.phone .card.tall {
-  max-height: 85%;
+/* Shut, the card is its header alone; its handle (the header) opens it. */
+.phone .work[data-card='peek'] .card > :not(.hd) {
+  display: none;
+}
+.phone .work[data-card='peek'] .card .hd {
+  border-bottom: 0;
+}
+/* While a part or wire is being put down the card steps aside for the hint. */
+.phone .work.tasking .card {
+  display: none;
 }
 .phone .card .hd {
   position: relative;
   padding-top: 16px;
+  touch-action: none;
+}
+.phone .hint,
+.phone .probs {
+  bottom: calc(var(--ch, 0px) + 12px);
+}
+.phone .hint kbd {
+  display: none;
 }
 .phone .card .hd::before {
   position: absolute;
@@ -2724,14 +2769,10 @@ select[data-dd] {
     font-size: 0;
     gap: 0;
   }
-  .phone .bar2 {
-    padding-left: max(4px, env(safe-area-inset-left));
-    padding-right: max(4px, env(safe-area-inset-right));
-  }
   .phone .parts {
     height: var(--sheet, 80%);
   }
   .phone .card {
-    max-height: 60%;
+    max-height: var(--card-max, 70%);
   }
 }

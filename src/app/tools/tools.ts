@@ -218,6 +218,10 @@ const TWIST_START = 0.25;
 const TWIST_SPAN = 80;
 /** Pixels the pointer has to travel before a press becomes a drag. */
 const DRAG_START = 5;
+/** The same for a finger, which wobbles as it lands and lifts. */
+const DRAG_START_TOUCH = 10;
+/** How far (pixels) round a finger a part, wire or instrument is still picked when the finger itself lands on bare board. */
+const FINGER_REACH = 12;
 /** Knob travel per pixel dragged and per wheel notch, out of 1000. */
 const KNOB_PER_PIXEL = 3.5;
 const KNOB_PER_NOTCH = 40;
@@ -254,12 +258,12 @@ const ARROWS: Record<string, Arrow | undefined> = {
 const round1 = (v: number): number => Math.round(v * 10) / 10;
 const round2 = (v: number): number => Math.round(v * 100) / 100;
 const desk = (v: THREE.Vector3): DeskPoint => ({ x: round1(v.x), z: round1(v.z) });
-/** Whether the pointer has moved far enough from where it was pressed to count as a drag. */
 /** How near (mm) a click has to land to a DIP switch's slider slot to flip it rather than select the switch. */
 const DIP_SLOT_REACH = 2.4;
 
-const movedFrom = (p: Pressed, e: { clientX: number; clientY: number }): boolean =>
-  Math.hypot(e.clientX - p.x, e.clientY - p.y) > DRAG_START;
+/** Whether the pointer has moved far enough from where it was pressed to count as a drag. */
+const movedFrom = (p: Pressed, e: { clientX: number; clientY: number; pointerType?: string }): boolean =>
+  Math.hypot(e.clientX - p.x, e.clientY - p.y) > (e.pointerType === 'touch' ? DRAG_START_TOUCH : DRAG_START);
 
 /** What a board or bench instrument is called in the hint bar. */
 const DESK_NAMES: Record<DeskKind, string> = {
@@ -947,6 +951,16 @@ export class Tools {
     return this.group.length ? this.group : this.selection ? [this.selection] : [];
   }
 
+  get hasSelection(): boolean {
+    return !!this.selection || this.group.length > 0;
+  }
+
+  /** Puts the selection away. */
+  deselect(): void {
+    this.setGroup([]);
+    this.refresh();
+  }
+
   /** Parts and wires go in groups; a power module stays put at its board's end, so it doesn't. */
   private groupable(item: ItemRef | null): item is ItemRef {
     return !!item && (item.kind === 'wire' || (item.kind === 'part' && this.fit.partDef(item.id)?.kind !== 'power'));
@@ -998,7 +1012,12 @@ export class Tools {
    * last bend, or with no bends left, the wire itself (as Esc does). Then the last edit.
    */
   get canUndo(): boolean {
-    return !!this.pending || this.store.canUndo;
+    return !!this.pending || this.inHand || this.store.canUndo;
+  }
+
+  /** Something picked up and not yet put down: a part or probe to place, a copy being carried. */
+  private get inHand(): boolean {
+    return !!this.pasting || !!this.dragIn || this.mode === 'place' || this.mode === 'probe';
   }
 
   undo(): void {
@@ -1008,6 +1027,8 @@ export class Tools {
       this.refresh();
       return;
     }
+    // Picking something up is the last thing done, so undo puts it away, as Esc does.
+    if (this.inHand) return this.cancel();
     this.store.undo();
   }
 
@@ -1431,6 +1452,30 @@ export class Tools {
     this.pointerInside = true;
   }
 
+  /**
+   * What's under the pointer. A finger covers more than the point it reports, so when it lands on bare
+   * board or desk, a part, wire or instrument just beside it is picked instead: the nearest ring first.
+   */
+  private pickItem(ray: THREE.Ray): ItemRef | null {
+    const exact = this.sync.pickItem(ray);
+    if (!this.touching || (exact && exact.kind !== 'board')) return exact;
+    const rect = this.canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return exact;
+    const at = new THREE.Vector2();
+    for (const reach of [FINGER_REACH / 2, FINGER_REACH]) {
+      for (let i = 0; i < 8; i++) {
+        const a = (i * Math.PI) / 4;
+        at.set(
+          this.ndc.x + ((Math.cos(a) * reach) / rect.width) * 2,
+          this.ndc.y - ((Math.sin(a) * reach) / rect.height) * 2,
+        );
+        const near = this.sync.pickItem(this.view.rayFrom(at));
+        if (near && near.kind !== 'board') return near;
+      }
+    }
+    return exact;
+  }
+
   /** The point on a board's top (or the desk) under the pointer. */
   private surfacePoint(): THREE.Vector3 | null {
     return this.sync.surfacePoint(this.view.rayFrom(this.ndc));
@@ -1588,7 +1633,15 @@ export class Tools {
       if (!adding) return capture({ kind: 'pan', ...at, last: at, active: false });
       return capture({ kind: 'box', ...at, add: adding, active: false });
     }
+    // A finger only moves what's already selected: on anything else a drag moves the view and a tap
+    // selects it, so nothing gets shifted by a finger that was only looking around. Knobs, buttons
+    // and switches still work straight away.
+    const fingerLooking = e.pointerType === 'touch' && !this.selected.some((s) => s.id === item.id);
     if (item.kind === 'supply' || item.kind === 'meter' || item.kind === 'scope') {
+      const control =
+        !!this.benchTerminal() ||
+        (item.kind === 'supply' ? !!item.knob : item.kind === 'meter' ? !!item.dial || !!item.button : !!item.control);
+      if (fingerLooking && !control) return capture({ kind: 'pan', ...at, last: at, active: false });
       return this.pressInstrument(item, e, capture);
     }
     const def = item.kind === 'part' ? this.fit.partDef(item.id) : undefined;
@@ -1606,6 +1659,7 @@ export class Tools {
     if (def?.kind === 'pot' && this.onPotKnob(item.id)) {
       return capture({ kind: 'knob', ...at, id: item.id, was: this.fit.part(item.id)?.state ?? 500 });
     }
+    if (fingerLooking) return capture({ kind: 'pan', ...at, last: at, active: false });
     capture({
       kind: 'press',
       ...at,
@@ -2771,7 +2825,7 @@ export class Tools {
           this.sync.pickHole(ray, this.mode === 'wire' && !this.touching ? HOLE_MAGNET : undefined)
       : null;
     this.hoverItem =
-      ray && this.mode === 'select' && !drag && !this.dragIn && !this.pasting ? this.sync.pickItem(ray) : null;
+      ray && this.mode === 'select' && !drag && !this.dragIn && !this.pasting ? this.pickItem(ray) : null;
     if (this.dragIn) this.dragIn.at = ray ? this.dropSpot(this.dragIn) : null;
     if (drag) drag.target = this.dragTarget(drag);
     this.view.setWheelZooms(!this.overKnob());
