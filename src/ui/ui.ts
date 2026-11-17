@@ -144,7 +144,7 @@ export class UI {
       if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
       e.preventDefault();
       // A moment's wait, so a file being saved isn't cut off by leaving the page.
-      this.saveFirst('home', () => setTimeout(() => location.assign('/'), 300));
+      this.saveFirst(() => setTimeout(() => location.assign('/'), 300));
     });
     this.setFaded(readFlag('fadeWires', false));
     this.setGraphics(readSetting('wireQuality') === 'fast' ? 'low' : 'high', false);
@@ -660,23 +660,14 @@ export class UI {
   }
 
   /**
-   * New circuit, Open file and the examples replace what's on the desk. The app keeps one circuit in the
-   * browser, so they offer to save it to a file first.
+   * Leaving for the home page offers to save to a file first. The circuit stays in My circuits (and
+   * the account, when signed in), but a file is the only copy that doesn't depend on this browser.
    */
-  private saveFirst(what: 'new' | 'open' | 'example' | 'home', then: () => void, name = ''): void {
+  private saveFirst(then: () => void): void {
     if (!this.hasSomething() || !this.store.changed) return then();
     const n = this.store.doc.name?.trim() || 'Untitled circuit';
     setText($('#ask-t'), `Save “${n}” first?`);
-    setText(
-      $('#ask-p'),
-      what === 'new'
-        ? 'A new circuit starts on an empty desk. Anything you haven’t saved to a file is lost.'
-        : what === 'home'
-          ? 'It stays in this browser and will be here when you come back, but only a file keeps it safe.'
-          : what === 'open'
-            ? 'The file you open takes the place of this circuit. Anything you haven’t saved to a file is lost.'
-            : `The “${name}” example takes the place of this circuit. Anything you haven’t saved to a file is lost.`,
-    );
+    setText($('#ask-p'), 'It stays in My circuits and will be here when you come back, but only a file keeps it safe.');
     this.openAsk('save', then);
   }
 
