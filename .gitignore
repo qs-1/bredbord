@@ -5,5 +5,5 @@ dist
 .cache
 docs/
 
-# The phone app is its own repo (qs-1/bredbord-mobile), checked out here so the desk can be built into it.
+# The phone app is its own repo (qs-1/bredbord-app), checked out here so the desk can be built into it.
 mobile/

@@ -1,7 +1,9 @@
 # How Bredbord works
 
-Bredbord is a TypeScript app built with Vite, with Three.js for the 3D workbench. It has no
-framework and no backend. It has four layers, and each one only imports from the layers below it:
+Bredbord is a TypeScript app built with Vite, with Three.js for the 3D workbench. It uses no
+framework. The simulator runs entirely in the browser; the only server is Supabase, which keeps
+accounts and shared circuits (see "Accounts and sharing" below). It has four layers, and each one only
+imports from the layers below it:
 
 ```
 src/ui/      panels around the 3D view (DOM)
@@ -14,7 +16,8 @@ src/engine/  no graphics: boards, parts, the saved document, the netlist, the si
 simulator runs in Node. Most of the tests in `tests/` use it that way.
 
 The landing page (`index.html`, `src/landing/`) is a separate entry with its own small Three.js
-scene; the simulator itself is `app/index.html`, which `src/main.ts` boots.
+scene; the simulator itself is `app/index.html`, which `src/main.ts` boots. A third entry,
+`embed/index.html` (`src/embed.ts`), is the desk alone for the phone app (below).
 
 ## The document
 
@@ -131,6 +134,39 @@ ngspice's generic red LED model. In a 2N3904 switch the base current comes out w
 collector current within 6 %. The model's limits: a transistor's Vbe is a fixed junction drop rather than
 the exponential curve, which matters for amplifiers, not switches; and time constants are
 approximate around several capacitors and a transistor in its active region.
+
+## The phone app
+
+The Android app (React Native with Expo) is its own repository ([qs-1/bredbord-app](https://github.com/qs-1/bredbord-app)), checked out as `mobile/` here. It draws every
+screen, bar and sheet natively, and shows the desk in a WebView: `npm run build:desk` builds
+`embed/index.html` into one self-contained file, `mobile/assets/desk.html`, with its script, styles
+and fonts inside it. The app and the desk talk in messages, typed in `src/embed.ts`: the app sends
+`ToDesk` (load a document, pick a tool, a wire colour, power on), the desk sends `FromDesk` (its state
+for the bars, the document after each change, notes and problems). So the simulator, the tools and
+the 3D view are the same code on the site and on the phone.
+
+The parts list is shared too: `src/ui/catalogue.ts` is the one list of parts and their sections. The
+site's Library builds from it, and `build:desk` writes it into the app as
+`mobile/src/generated/catalogue.ts`, with the part pictures.
+
+## Accounts and sharing
+
+[Supabase](https://supabase.com) keeps accounts, people's names and pictures, and circuits. Its setup
+and its rules are in `supabase/` (`supabase/README.md` has the steps and a table of who may do
+what). The security is in the database: row-level rules in `supabase/migrations/` decide who reads
+and writes each row, and limits (circuits a day, size) are enforced there, not in the clients. The
+app and the site hold only the publishable key. The one function that needs the secret key,
+`delete-account`, runs inside Supabase. `node scripts/check-supabase.mjs` checks the rules from
+outside with the publishable key.
+
+A circuit row has a visibility: `private` (only its owner can read it), `link` (anyone with its
+link code, through `circuit_by_link`) or `public` (in Community). The phone keeps every circuit of
+a signed-in account in that account, private ones too, so signing in elsewhere brings them back:
+changes go up a few seconds after they're made, and the account's copies come down on sign-in and
+when the app returns to the front, newest edit winning. Pictures are JPEGs in a public storage
+bucket, each person writing only their own folder.
+
+The website does not use any of this yet: it still keeps circuits in the browser only.
 
 ## Tests and CI
 

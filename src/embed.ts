@@ -79,6 +79,8 @@ async function start(): Promise<void> {
     const many = tools.selectionCount;
     const sel = tools.selection;
     const part = sel?.kind === 'part' ? store.doc.parts.find((p) => p.id === sel.id) : undefined;
+    // A selected wire's own colour shows on the Colour tool, as on the site.
+    const wire = many === 1 && sel?.kind === 'wire' ? store.doc.wires.find((w) => w.id === sel.id) : undefined;
     const title =
       many > 1
         ? `${many} things`
@@ -92,7 +94,7 @@ async function start(): Promise<void> {
       selection: many ? { title, count: many } : null,
       task: tools.task.replace(/\bClick\b/g, 'Tap').replace(/\bclick\b/g, 'tap'),
       wire: tools.mode === 'wire',
-      color: tools.wireColor,
+      color: wire?.color ?? tools.wireColor,
       on: sim.isOn,
       canUndo: tools.canUndo,
       canRedo: store.canRedo,
