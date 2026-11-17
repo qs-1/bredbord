@@ -6,7 +6,7 @@
 import { readFile, writeFile, rm, mkdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { build } from 'vite';
+import { build, createServer } from 'vite';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const out = join(root, '.cache', 'embed-build');
@@ -67,3 +67,87 @@ await writeFile(
   `// Copied from src/ui/px.ts by scripts/build-embed.mjs. Don't edit: change the icons there.\n${px.slice(from, to)}\n} as const;\n`,
 );
 console.log('mobile/src/generated/px.ts written');
+
+// The parts, with the same pictures as the parts panel on the website (src/ui/pictures.ts), so the
+// app shows parts exactly as the site does.
+const vite = await createServer({
+  root,
+  configFile: false,
+  logLevel: 'error',
+  server: { middlewareMode: true },
+  appType: 'custom',
+});
+const { PART_LIST } = await vite.ssrLoadModule('/src/engine/parts.ts');
+const { PICTURES, chipPicture } = await vite.ssrLoadModule('/src/ui/pictures.ts');
+await vite.close();
+
+const LED_COLOURS = {
+  red: ['#e2362a', '#c42b21'],
+  green: ['#2fa84f', '#23843d'],
+  yellow: ['#f0c419', '#c99f0e'],
+  blue: ['#2a62d8', '#1f4caa'],
+  white: ['#f2f1ee', '#cfcbc2'],
+};
+const pictureOf = (d) => {
+  switch (d.kind) {
+    case 'dip':
+      return chipPicture(d.id === 'W65C02S' ? '65C02' : d.id.replace(/^AT/, ''), d.pins);
+    case 'led': {
+      const [body, rim] = LED_COLOURS[d.id.slice(4)] ?? LED_COLOURS.red;
+      return PICTURES.led.replaceAll('#e2362a', body).replaceAll('#c42b21', rim);
+    }
+    case 'capacitor':
+      return d.id === 'cap-electrolytic' ? PICTURES.elec : PICTURES.cer;
+    case 'transistor':
+      return d.id === '2N3906' ? PICTURES.pnp : PICTURES.npn;
+    default:
+      return (
+        {
+          resistor: PICTURES.res,
+          pot: PICTURES.pot,
+          diode: PICTURES.diode,
+          power: PICTURES.pmod,
+          button: PICTURES.push,
+          slide: PICTURES.slide,
+          pushswitch: PICTURES.latch,
+          dipswitch: PICTURES.dip,
+          display: PICTURES.seg7,
+          bargraph: PICTURES.bar,
+          network: PICTURES.network,
+          nano: PICTURES.nano,
+          lcd: PICTURES.lcd,
+        }[d.kind] ?? ''
+      );
+  }
+};
+const parts = Object.fromEntries(
+  PART_LIST.map((d) => [
+    d.id,
+    {
+      kind: d.kind,
+      title: d.title,
+      // The app loads the mono font under its own name.
+      svg: `<svg viewBox="0 0 64 48">${pictureOf(d)}</svg>`.replaceAll(
+        'Atkinson Hyperlegible Mono,monospace',
+        'AtkinsonHyperlegibleMono_400Regular',
+      ),
+    },
+  ]),
+);
+// Boards and instruments aren't parts, but have tiles on the panel too.
+const svg = (body) =>
+  `<svg viewBox="0 0 64 48">${body}</svg>`.replaceAll(
+    'Atkinson Hyperlegible Mono,monospace',
+    'AtkinsonHyperlegibleMono_400Regular',
+  );
+const tiles = Object.fromEntries(
+  ['bb', 'core', 'half', 'mini', 'rail', 'bench', 'probe', 'meter', 'scope'].map((k) => [k, svg(PICTURES[k])]),
+);
+await writeFile(
+  join(root, 'mobile', 'src', 'generated', 'parts.ts'),
+  `// Made by scripts/build-embed.mjs from src/engine/parts.ts and src/ui/pictures.ts. Don't edit.\n` +
+    `export const PARTS: Record<string, { kind: string; title: string; svg: string }> = ${JSON.stringify(parts, null, 2)};\n\n` +
+    `/** Tile pictures for boards and instruments. */\n` +
+    `export const TILES: Record<string, string> = ${JSON.stringify(tiles, null, 2)};\n`,
+);
+console.log(`mobile/src/generated/parts.ts written (${PART_LIST.length} parts)`);

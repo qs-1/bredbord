@@ -1,0 +1,25 @@
+# A free Supabase project is paused after about a week with no activity. This asks it for one row
+# every day so it stays awake. It uses only the publishable key (the same one inside the app), kept
+# as repository secrets: SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY.
+name: Keep Supabase awake
+
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ask for one circuit
+        env:
+          URL: ${{ secrets.SUPABASE_URL }}
+          KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          if [ -z "$URL" ] || [ -z "$KEY" ]; then echo "The secrets aren't set yet"; exit 0; fi
+          curl --fail --silent --show-error --max-time 30 -o /dev/null \
+            "$URL/rest/v1/circuits?select=id&limit=1" -H "apikey: $KEY"
