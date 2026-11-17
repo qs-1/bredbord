@@ -9,8 +9,10 @@ function, inside Supabase. It is never put in the app, the website, this repo or
 
 ## Setting it up (once)
 
-1. **Tables and rules.** In the Supabase dashboard, open SQL Editor, paste all of
-   `migrations/20261117000000_community.sql`, and run it.
+1. **Tables and rules.** In the Supabase dashboard, open SQL Editor, and run each file in
+   `migrations/` in name order, pasting all of it: `20261117000000_community.sql`, then
+   `20261118000000_picture_replace.sql` (lets a circuit's picture be replaced), then
+   `20261118100000_private_circuits.sql` (every circuit kept in its owner's account, private ones too).
 2. **Check the rules from outside.** From the main project:
    ```bash
    node scripts/check-supabase.mjs
@@ -53,10 +55,12 @@ The app reads `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_K
 | ----------------------------------- | ------------------ | ------------------------------- | --------------- |
 | Read public circuits and names      | yes                | yes                             | yes             |
 | Open a link-only circuit            | with its link code | with its link code              | yes             |
+| See a private circuit               | no                 | only their own                  | no              |
 | List link-only circuits             | no                 | only their own                  | yes             |
-| Share, change, delete circuits      | no                 | their own                       | delete any      |
+| Keep, share, change, delete         | no                 | their own                       | delete shared   |
 | Like                                | no                 | public circuits, as themselves  |                 |
 | Change like or remix counts, unhide | no                 | no                              | hide and unhide |
 | Report                              | no                 | 20 a day                        | read and handle |
+| Keep                                | no                 | 200 new a day, 2000 in all      |                 |
 | Share                               | no                 | 30 a day, 500 in all, 1 MB each |                 |
 | Pictures                            | read by address    | their own folder, JPEG, 256 KB  |                 |

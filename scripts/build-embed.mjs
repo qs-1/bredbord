@@ -78,7 +78,8 @@ const vite = await createServer({
   appType: 'custom',
 });
 const { PART_LIST } = await vite.ssrLoadModule('/src/engine/parts.ts');
-const { PICTURES, chipPicture } = await vite.ssrLoadModule('/src/ui/pictures.ts');
+const { PICTURES, chipPicture, pictureSVG } = await vite.ssrLoadModule('/src/ui/pictures.ts');
+const { CATALOGUE, SECTIONS } = await vite.ssrLoadModule('/src/ui/catalogue.ts');
 await vite.close();
 
 const LED_COLOURS = {
@@ -151,3 +152,35 @@ await writeFile(
     `export const TILES: Record<string, string> = ${JSON.stringify(tiles, null, 2)};\n`,
 );
 console.log(`mobile/src/generated/parts.ts written (${PART_LIST.length} parts)`);
+
+// The parts panel's tiles, in its sections, for the app's parts sheet: what each tile tells the desk
+// (src/embed.ts) and its picture.
+const sendOf = (p) =>
+  p.kind === 'part'
+    ? { type: 'place', part: p.part }
+    : p.kind === 'led'
+      ? { type: 'place', part: 'led-red' }
+      : p.kind === 'board'
+        ? { type: 'board', board: p.type }
+        : p.kind === 'desk'
+          ? { type: 'carry', what: p.what }
+          : { type: 'probe' };
+const catalogue = CATALOGUE.map((c) => ({
+  id: c.id,
+  name: c.name,
+  sub: c.sub,
+  section: c.section,
+  keywords: c.keywords,
+  send: sendOf(c.pick),
+  svg: pictureSVG(c.pic)
+    .replace(' aria-hidden="true"', '')
+    .replaceAll('Atkinson Hyperlegible Mono,monospace', 'AtkinsonHyperlegibleMono_400Regular'),
+}));
+await writeFile(
+  join(root, 'mobile', 'src', 'generated', 'catalogue.ts'),
+  `// Made by scripts/build-embed.mjs from src/ui/catalogue.ts (the website's parts panel). Don't edit.\n` +
+    `export const SECTIONS = ${JSON.stringify(SECTIONS)} as const;\n\n` +
+    `export interface Tile {\n  id: string;\n  name: string;\n  sub: string;\n  section: (typeof SECTIONS)[number];\n  keywords: string;\n  send: { type: string; [key: string]: string };\n  svg: string;\n}\n\n` +
+    `export const CATALOGUE: Tile[] = ${JSON.stringify(catalogue, null, 2)};\n`,
+);
+console.log(`mobile/src/generated/catalogue.ts written (${catalogue.length} tiles)`);
