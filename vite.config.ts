@@ -4,7 +4,7 @@ import { defineConfig } from 'vitest/config';
 
 /**
  * Addresses Vercel handles itself (vercel.json), done the same way in development: /app without its
- * slash goes on to /app/, and a shared link, /c/<code>, is served the shared-circuit page.
+ * slash goes on to /app/, and a shared link, /c/<code>, is served the shared-circuit page, and /privacy its page.
  */
 const appSlash: Plugin = {
   name: 'app-slash',
@@ -21,6 +21,10 @@ function redirect(req: IncomingMessage, res: ServerResponse, next: () => void): 
     req.url = `/c/index.html${query ?? ''}`;
     return next();
   }
+  if (path === '/privacy') {
+    req.url = `/privacy/index.html${query ?? ''}`;
+    return next();
+  }
   if (path !== '/app') return next();
   res.statusCode = 308;
   res.setHeader('Location', `/app/${query ?? ''}`);
@@ -33,6 +37,10 @@ export default defineConfig({
   test: { include: ['tests/**/*.test.ts'] },
   // Changes with every build, so caches of what the 3D models look like (part thumbnails) start afresh.
   define: { __BUILD_ID__: JSON.stringify(Date.now().toString(36)) },
-  // Three pages: the landing page at /, the workbench at /app/, a shared link's page at /c/<code>.
-  build: { rollupOptions: { input: { main: 'index.html', app: 'app/index.html', shared: 'c/index.html' } } },
+  // The landing page at /, the workbench at /app/, a shared link's page at /c/<code>, and /privacy.
+  build: {
+    rollupOptions: {
+      input: { main: 'index.html', app: 'app/index.html', shared: 'c/index.html', privacy: 'privacy/index.html' },
+    },
+  },
 });
