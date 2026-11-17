@@ -14,6 +14,7 @@ import type { Tools } from '../app/tools/tools';
 import { busRows, type BusViewMode } from '../engine/busview';
 import { holeKey, type Id, type ProbeDoc } from '../engine/circuit';
 import { CHIP_MODELS } from '../engine/sim/chips';
+import { PROBE_COLORS } from '../view/markers';
 import { $, el, setText } from './dom';
 import { levelOf } from './hover';
 import { icon, paintIcons } from './px';
@@ -299,20 +300,23 @@ export class Dock {
     this.paint(probes);
   }
 
-  /** One label per probe: its name, its hole on one line (cut short if it must), and its reading. */
+  /** One label per probe: a dot in its colour in a column of its own, then its name, its hole (cut short if it must) and its reading. */
   private syncRows(probes: readonly ProbeDoc[]): void {
     const key = probes.map((p) => `${p.id}@${holeKey(p.at)}`).join(';') + `|${this.store.doc.boards.length}`;
     if (key === this.rowsKey) return;
     this.rowsKey = key;
     this.labels.length = 0;
     this.lcol.replaceChildren(el('div', 'lsp'));
-    for (const p of probes) {
+    probes.forEach((p, i) => {
       const row = el('div', 'lname');
       const text = el('div', 'lt');
       const top = el('div');
       const where = this.where(p.at);
       const hole = el('span', '', where);
       hole.title = where;
+      // A dot in the colour of the probe's head on the desk, so a lane is easy to match to its probe.
+      const dot = el('i', 'pdot');
+      dot.style.background = `#${PROBE_COLORS[i % PROBE_COLORS.length].toString(16).padStart(6, '0')}`;
       top.append(el('b', '', probeRef(this.store.doc, p.id)), hole);
       const value = el('em');
       text.append(top, value);
@@ -321,10 +325,10 @@ export class Dock {
       remove.setAttribute('aria-label', 'Remove this probe');
       remove.append(icon('close', true));
       remove.addEventListener('click', () => this.tool.removeProbe(p.id));
-      row.append(text, remove);
+      row.append(dot, text, remove);
       this.lcol.append(row);
       this.labels.push({ value });
-    }
+    });
     paintIcons(this.lcol);
   }
 

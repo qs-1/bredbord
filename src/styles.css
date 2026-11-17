@@ -2125,6 +2125,14 @@ select[data-dd] {
   line-height: 16px;
   min-width: 0;
 }
+/* the probe's colour, as its head on the desk: in a column of its own, as far from the text as from the edge */
+.lname .pdot {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  margin-right: 8px;
+  border-radius: 50%;
+}
 .lname .lt b {
   font: 500 12px/16px var(--mono);
   flex: none;
