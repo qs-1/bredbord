@@ -16,16 +16,17 @@ function, inside Supabase. It is never put in the app, the website, this repo or
    node scripts/check-supabase.mjs
    ```
    Every line should say `ok`. It uses only the publishable key.
-3. **Sign-in by email.** Authentication, then Sign In / Providers: Email on. Then Authentication,
-   then Emails, the "Magic Link" template: put the six-digit code in it, for example
-   `Your Bredbord code is {{ .Token }}`. The app asks for the code, so no link has to open the app.
+3. **Sign-in by email.** Authentication, then Sign In / Providers: Email on. The default "Magic
+   Link" email is used as it is. Authentication, then URL Configuration: add `bredbord://auth` to
+   the redirect URLs. The email's link must be opened on the phone that asked for it: it comes back
+   into the app at that address, which trades it for a session.
 4. **Sign-in with Google** (optional, can come later):
    - In Google Cloud Console, make a project, set up the OAuth consent screen, and make an OAuth
      client of type "Web application". Under "Authorised redirect URIs" add the callback URL that
      Supabase shows on its Google provider page.
    - In Supabase, Authentication, then Sign In / Providers, then Google: paste the client ID and
      secret, and turn it on.
-   - Authentication, then URL Configuration: add `bredbord://auth` to the redirect URLs.
+   - It comes back to the app at `bredbord://auth` too (step 3).
 5. **The delete-account function.** Edge Functions, Deploy a new function, name it
    `delete-account`, and paste `functions/delete-account/index.ts`. Supabase gives it the keys it
    needs itself.
