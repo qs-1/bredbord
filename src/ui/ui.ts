@@ -4,12 +4,14 @@
 // wires them up and refreshes them all when anything changes.
 
 import { EXAMPLES } from '../app/example';
+import { keepAside, newestKept, takeNewest } from '../app/kept';
 import type { SceneSync } from '../app/scene-sync';
 import type { Simulation } from '../app/simulation';
 import type { Store } from '../app/store';
 import type { Tools } from '../app/tools/tools';
 import { emptyDoc, WIRE_COLORS, type CircuitDoc } from '../engine/circuit';
 import { readDoc } from '../engine/document';
+import { codeFromSearch } from '../community/links';
 import { PARTS } from '../engine/parts';
 import type { View } from '../view/view';
 import { CodePanel } from './codepanel';
@@ -140,6 +142,9 @@ export class UI {
         15000,
       );
     if (location.hash.includes('debug')) this.startPerfReadout();
+    this.refreshKept();
+    const code = codeFromSearch(location.search);
+    if (code) void this.openShared(code);
   }
 
   // ---- bar 1: the name, running, the menu ----
@@ -192,6 +197,7 @@ export class UI {
         if (what === 'new') this.saveFirst('new', () => this.newCircuit());
         else if (what === 'open') this.saveFirst('open', () => $<HTMLInputElement>('#import-file').click());
         else if (what === 'add') $<HTMLInputElement>('#add-file').click();
+        else if (what === 'back') this.backToKept();
         else this.saveToFile();
       }),
     );
@@ -644,6 +650,84 @@ export class UI {
       (doc) => this.swapIn(doc),
       () => this.toast('Couldn’t load that example. Check the connection and try again'),
     );
+  }
+
+  // ---- shared links ----
+
+  /**
+   * Opens a shared circuit (/app/?c=<code>, from its page) as a copy. Whatever was on the desk is kept
+   * aside in this browser first, and "Back to …" in the menu brings it back; if it can't be kept, the
+   * shared one isn't opened.
+   */
+  private async openShared(code: string): Promise<void> {
+    // Take the code off the address, so reloading doesn't open it again over later work.
+    const url = new URL(location.href);
+    url.searchParams.delete('c');
+    history.replaceState(history.state, '', url);
+
+    const { circuitByLink } = await import('../community/links');
+    const result = await circuitByLink(code);
+    if (result.kind !== 'found') {
+      this.toast(
+        result.kind === 'missing'
+          ? 'That circuit isn’t available. Its maker may have deleted it or made it private'
+          : result.kind === 'offline'
+            ? 'Couldn’t open that circuit. Check your connection and try again'
+            : 'Shared circuits aren’t available here',
+        6000,
+      );
+      return;
+    }
+    const read = readDoc(result.circuit.doc);
+    if ('error' in read) {
+      this.toast(`Couldn’t open that circuit (${read.error})`, 6000);
+      return;
+    }
+    const title = result.circuit.title.trim() || 'Untitled circuit';
+    const doc = { ...read.doc, name: title };
+    const go = (): void => {
+      const mine = this.hasSomething() ? this.store.doc.name?.trim() || 'Untitled circuit' : null;
+      if (mine && !keepAside(this.store.doc)) {
+        this.toast(
+          'Couldn’t keep your circuit in this browser, so the shared one wasn’t opened. Save yours to a file first',
+          9000,
+        );
+        return;
+      }
+      void this.swapIn(doc).then(() => {
+        this.refreshKept();
+        const by = result.circuit.maker ? ` by ${result.circuit.maker.username}` : '';
+        this.toast(
+          mine
+            ? `Opened “${title}”${by}, as a copy. Your “${mine}” is kept: Menu, then Back to “${mine}”`
+            : `Opened “${title}”${by}, as a copy`,
+          mine ? 8000 : 3000,
+        );
+      });
+    };
+    if (read.notes.length) this.confirmPartial(title, read.notes, go);
+    else go();
+  }
+
+  /** Puts the newest circuit kept aside back on the desk, keeping what's there aside in its place. */
+  private backToKept(): void {
+    const current = this.hasSomething() ? this.store.doc : null;
+    const kept = takeNewest(current);
+    if (!kept) {
+      this.toast('Couldn’t bring it back: this browser’s storage is blocked');
+      this.refreshKept();
+      return;
+    }
+    void this.swapIn(kept.doc).then(() => {
+      this.refreshKept();
+      this.toast(current ? `Back to “${kept.name}”. The other circuit is kept in its place` : `Back to “${kept.name}”`);
+    });
+  }
+
+  private refreshKept(): void {
+    const kept = newestKept();
+    $('#m-back').hidden = !kept;
+    if (kept) setText($('#m-back-t'), `Back to “${kept.name}”`);
   }
 
   private saveToFile(): void {

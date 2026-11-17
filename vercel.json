@@ -3,6 +3,7 @@
     { "source": "/home", "destination": "/", "permanent": true },
     { "source": "/app", "destination": "/app/", "permanent": true }
   ],
+  "rewrites": [{ "source": "/c/:code", "destination": "/c/index.html" }],
   "git": {
     "deploymentEnabled": {
       "**": false,

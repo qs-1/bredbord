@@ -15,10 +15,10 @@ const store = new Store();
 const sync = new SceneSync(view, store);
 const sim = new Simulation(store, sync, view);
 const tools = new Tools(view, store, sync, sim, canvas);
-new UI(store, tools, view, sync, sim);
+const ui = new UI(store, tools, view, sync, sim);
 view.fit(sync.boardsBox(), false);
 
 // Handy from the browser console while developing.
 Object.assign(window, {
-  bb: { view, store, sync, sim, tools, stress: () => runStressTest(store, sync, view), benchDoc },
+  bb: { view, store, sync, sim, tools, ui, stress: () => runStressTest(store, sync, view), benchDoc },
 });

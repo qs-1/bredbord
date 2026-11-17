@@ -1,0 +1,261 @@
+/* The shared-circuit page: the workbench's warm greys and type, one column. */
+@import '../fonts.css';
+
+:root {
+  --ink: #1f1d1a;
+  --ink-2: #57524a;
+  --ink-3: #7b756b;
+  --line: rgba(31, 29, 26, 0.1);
+  --line-2: rgba(31, 29, 26, 0.2);
+  --bar: #fbfaf7;
+  --card: #ffffff;
+  --raised: #f0eee9;
+  --desk: #e9e7e1;
+  --r: 6px;
+  --r-card: 10px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --font: 'Atkinson Hyperlegible Next', system-ui, sans-serif;
+  --u: 2px;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+[hidden] {
+  display: none !important;
+}
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bar);
+  color: var(--ink);
+  font: 400 14px/1.5 var(--font);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+a {
+  color: inherit;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--line);
+}
+.home {
+  display: flex;
+}
+.logo {
+  width: calc(45 * var(--u));
+  height: calc(11 * var(--u));
+}
+.grow {
+  flex: 1;
+}
+
+.btn,
+.primary {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--r);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.13s var(--ease);
+}
+.btn {
+  border: 1px solid var(--line-2);
+  background: var(--card);
+}
+.btn:hover {
+  background: var(--raised);
+}
+.primary {
+  height: 36px;
+  padding: 0 16px;
+  background: var(--ink);
+  color: #fff;
+  font-weight: 500;
+}
+.primary:hover {
+  background: #3a3631;
+}
+.primary:active {
+  transform: scale(0.98);
+}
+:is(.btn, .primary):focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+.pic {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--r-card);
+  overflow: hidden;
+  background: var(--desk);
+  border: 1px solid var(--line);
+}
+.pic img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.25s var(--ease);
+}
+.pic img.in {
+  opacity: 1;
+}
+
+h1 {
+  margin: 20px 0 2px;
+  font-size: 22px;
+  line-height: 1.3;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.maker {
+  margin: 0;
+  color: var(--ink-2);
+}
+.desc {
+  margin: 12px 0 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+/* Placeholders the same height as the text that replaces them, so nothing moves when it arrives. */
+.ph {
+  display: inline-block;
+  height: 0.9em;
+  vertical-align: -0.05em;
+  border-radius: 3px;
+  background: var(--raised);
+}
+.w60 {
+  width: 60%;
+}
+.w30 {
+  width: 30%;
+}
+
+.acts {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 20px;
+}
+.note {
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+.parts {
+  margin-top: 28px;
+}
+.parts h2 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.parts ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 4px 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.parts li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+}
+.parts svg {
+  flex: none;
+  width: 48px;
+  height: 36px;
+  border-radius: 4px;
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+.parts .n {
+  margin-left: auto;
+  color: var(--ink-3);
+}
+
+/* Wide screens: the picture on the left, what it is and the button beside it, parts below both. */
+@media (min-width: 760px) {
+  .page {
+    max-width: 960px;
+    padding-top: 32px;
+  }
+  .shared {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto 1fr;
+    column-gap: 32px;
+  }
+  .shared > .pic {
+    grid-column: 1;
+    grid-row: 1 / span 5;
+  }
+  .shared > :not(.pic, .parts) {
+    grid-column: 2;
+  }
+  .shared > .parts {
+    grid-column: 1 / -1;
+  }
+  .shared > h1 {
+    margin-top: 4px;
+  }
+  .gone {
+    max-width: 640px;
+    margin: 0 auto;
+  }
+}
+
+.gone {
+  padding-top: 48px;
+}
+.gone h1 {
+  margin-top: 0;
+}
+.gone p {
+  margin: 4px 0 20px;
+  color: var(--ink-2);
+}
+
+/* What arrives rises in once; the placeholders hold the space until then. */
+.ready :is(.shared, .gone) > :not(.pic, [hidden]) {
+  animation: rise 0.22s var(--ease) both;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ready :is(.shared, .gone) > *,
+  .pic img {
+    animation: none;
+    transition: none;
+  }
+}

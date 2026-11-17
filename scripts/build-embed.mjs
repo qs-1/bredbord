@@ -78,49 +78,11 @@ const vite = await createServer({
   appType: 'custom',
 });
 const { PART_LIST } = await vite.ssrLoadModule('/src/engine/parts.ts');
-const { PICTURES, chipPicture, pictureSVG } = await vite.ssrLoadModule('/src/ui/pictures.ts');
+const { PICTURES, pictureSVG } = await vite.ssrLoadModule('/src/ui/pictures.ts');
 const { CATALOGUE, SECTIONS } = await vite.ssrLoadModule('/src/ui/catalogue.ts');
+const { partPictureBody } = await vite.ssrLoadModule('/src/ui/part-picture.ts');
 await vite.close();
 
-const LED_COLOURS = {
-  red: ['#e2362a', '#c42b21'],
-  green: ['#2fa84f', '#23843d'],
-  yellow: ['#f0c419', '#c99f0e'],
-  blue: ['#2a62d8', '#1f4caa'],
-  white: ['#f2f1ee', '#cfcbc2'],
-};
-const pictureOf = (d) => {
-  switch (d.kind) {
-    case 'dip':
-      return chipPicture(d.id === 'W65C02S' ? '65C02' : d.id.replace(/^AT/, ''), d.pins);
-    case 'led': {
-      const [body, rim] = LED_COLOURS[d.id.slice(4)] ?? LED_COLOURS.red;
-      return PICTURES.led.replaceAll('#e2362a', body).replaceAll('#c42b21', rim);
-    }
-    case 'capacitor':
-      return d.id === 'cap-electrolytic' ? PICTURES.elec : PICTURES.cer;
-    case 'transistor':
-      return d.id === '2N3906' ? PICTURES.pnp : PICTURES.npn;
-    default:
-      return (
-        {
-          resistor: PICTURES.res,
-          pot: PICTURES.pot,
-          diode: PICTURES.diode,
-          power: PICTURES.pmod,
-          button: PICTURES.push,
-          slide: PICTURES.slide,
-          pushswitch: PICTURES.latch,
-          dipswitch: PICTURES.dip,
-          display: PICTURES.seg7,
-          bargraph: PICTURES.bar,
-          network: PICTURES.network,
-          nano: PICTURES.nano,
-          lcd: PICTURES.lcd,
-        }[d.kind] ?? ''
-      );
-  }
-};
 const parts = Object.fromEntries(
   PART_LIST.map((d) => [
     d.id,
@@ -128,7 +90,7 @@ const parts = Object.fromEntries(
       kind: d.kind,
       title: d.title,
       // The app loads the mono font under its own name.
-      svg: `<svg viewBox="0 0 64 48">${pictureOf(d)}</svg>`.replaceAll(
+      svg: `<svg viewBox="0 0 64 48">${partPictureBody(d.id)}</svg>`.replaceAll(
         'Atkinson Hyperlegible Mono,monospace',
         'AtkinsonHyperlegibleMono_400Regular',
       ),

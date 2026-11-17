@@ -166,7 +166,31 @@ changes go up a few seconds after they're made, and the account's copies come do
 when the app returns to the front, newest edit winning. Pictures are JPEGs in a public storage
 bucket, each person writing only their own folder.
 
-The website does not use any of this yet: it still keeps circuits in the browser only.
+### On the website
+
+The website is catching up with the phone, one step at a time. What it does so far:
+
+- **Shared links**, `/c/<link code>` (the address the app hands out). `c/index.html` and
+  `src/shared/shared.ts` show the circuit's picture, title, maker, description and parts (pictures
+  and names from `src/ui/part-picture.ts`, which `build:desk` also uses for the app's copy). Vercel
+  serves that page for any `/c/...` address (a rewrite in `vercel.json`; the dev server does the same
+  in `vite.config.ts`). "Open on the desk" goes to `/app/?c=<code>`: the desk fetches the circuit
+  again by its code, checks it like a file, and opens it as a copy named after it, then takes the
+  code off the address so a reload doesn't open it again.
+- **Nothing on the desk is lost when a link opens.** `src/app/kept.ts` keeps the circuit that was
+  there aside in this browser first (if it can't, the shared one isn't opened), and "Back to …" in
+  the menu swaps it back, keeping the other aside in its place. At most 10 are kept; the oldest goes
+  after that. This stands in for My circuits, which the site doesn't have yet.
+- A circuit that was deleted, hidden or made private looks the same from outside (`circuit_by_link`
+  returns nothing for all three), so the page says one plain thing for all of them.
+- The Supabase client (`src/community/supabase.ts`) is loaded only when a link is opened, so the desk
+  doesn't carry it otherwise. It reads `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`
+  (`.env.local` for development, Vercel's environment variables for the site); without them the site
+  works as before and links say shared circuits aren't available.
+
+Not done yet: sign-in, the account's circuits on the site, sharing from the site, Community and
+people's pages (the maker's name on a shared page is plain text until those exist), and link
+previews in chats (every link shows the same Bredbord preview, because the page is static).
 
 ## Tests and CI
 
