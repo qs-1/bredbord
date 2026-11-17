@@ -18,26 +18,24 @@ function, inside Supabase. It is never put in the app, the website, this repo or
    node scripts/check-supabase.mjs
    ```
    Every line should say `ok`. It uses only the publishable key.
-3. **Sign-in by email.** Authentication, then Sign In / Providers: Email on. The default "Magic
-   Link" email is used as it is. Authentication, then URL Configuration: add `bredbord://auth` to
-   the redirect URLs. The email's link must be opened on the phone that asked for it: it comes back
-   into the app at that address, which trades it for a session.
-4. **Sign-in with Google** (optional, can come later):
-   - In Google Cloud Console, make a project, set up the OAuth consent screen, and make an OAuth
-     client of type "Web application". Under "Authorised redirect URIs" add the callback URL that
-     Supabase shows on its Google provider page.
-   - In Supabase, Authentication, then Sign In / Providers, then Google: paste the client ID and
-     secret, and turn it on.
-   - It comes back to the app at `bredbord://auth` too (step 3).
-     4b. **Sign-in with Google on the website.** The site uses Google's own button (no redirect through
-     Supabase, so no redirect URL to add for it):
-   - In Google Cloud Console, in the same project, make another OAuth client of type "Web
-     application". Under "Authorised JavaScript origins" add `https://bredbord.vercel.app` and
-     `http://localhost:5173`. No redirect URIs are needed for it.
-   - In Supabase, Authentication, then Sign In / Providers, then Google: add this client's ID to
-     "Client IDs" (the list of client IDs whose ID tokens are accepted), next to the first one.
-   - In Vercel, Project Settings, then Environment Variables, add `VITE_GOOGLE_CLIENT_ID` (that client
-     ID; it is public), with `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`, then redeploy.
+3. **Sign-in is Google only** (no email), on the app and the site. Authentication, then Sign In /
+   Providers: turn Email off. No redirect URLs are needed: neither the app nor the site goes through
+   a Supabase address (`bredbord://auth` can be removed from URL Configuration).
+4. **Google sign-in.** In Google Cloud Console (one project, OAuth consent screen set up, with the
+   privacy page's address, `https://bredbord.vercel.app/privacy`):
+   - Make an OAuth client of type **Web application**. Under "Authorised JavaScript origins" add
+     `https://bredbord.vercel.app` and `http://localhost:5173`. No redirect URIs. This one client ID
+     is used by both the site and the app (the app asks Google for an ID token made out to it).
+   - Make an OAuth client of type **Android**: package name `app.bredbord.proto`, and the SHA-1
+     fingerprint of the key the APK is signed with. Make one for each key: the debug key
+     (`cd mobile/android && ./gradlew signingReport`) and the release key. The app never uses this
+     client's ID; Google just needs it to exist to allow the app.
+   - In Supabase, Authentication, then Sign In / Providers, then Google: turn it on and put the web
+     client's ID in "Client IDs". The client secret isn't needed for ID-token sign-in.
+   - The web client's ID is public. Put it in Vercel's environment variables as
+     `VITE_GOOGLE_CLIENT_ID` (with `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`, then
+     redeploy), and in `mobile/.env` as `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`. After adding the Google
+     library, the app needs `npx expo prebuild` and a new build.
 5. **The delete-account function.** Edge Functions, Deploy a new function, name it
    `delete-account`, and paste `functions/delete-account/index.ts`. Supabase gives it the keys it
    needs itself.
@@ -49,14 +47,17 @@ function, inside Supabase. It is never put in the app, the website, this repo or
    third-party guides; check Supabase's own pricing page). `.github/workflows/keep-supabase-awake.yml`
    asks it for one row a day. In the GitHub repo's Settings, then Secrets and variables, then
    Actions, add `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`.
-8. **Before release: your own email sender.** Supabase's built-in one is reported to allow only a few
-   emails an hour and is meant for testing. Authentication, then Emails, then SMTP Settings, with a
+8. **Email sender: not needed.** Sign-in is Google only, so Supabase sends no sign-in emails. If email
+   is ever turned back on: Supabase's built-in sender is meant for testing; Authentication, then
+   Emails, then SMTP Settings, with a
    service such as Resend.
 
 ## The app's keys
 
-The app reads `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` from
-`mobile/.env`, which git ignores. Only those two: never the secret key.
+The app reads `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and
+`EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` from `mobile/.env`, which git ignores. All three are public; never
+the secret key. The site reads the same values as `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`
+and `VITE_GOOGLE_CLIENT_ID`.
 
 ## What the rules allow
 
