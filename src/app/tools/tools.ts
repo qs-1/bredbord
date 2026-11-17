@@ -2910,13 +2910,17 @@ export class Tools {
     let tone: MarkerTone = 'info';
     if (h && this.mode !== 'select' && this.mode !== 'probe')
       tone = this.sync.occupancy.has(holeKey(h.ref)) || this.sync.covered.has(holeKey(h.ref)) ? 'bad' : 'ok';
-    this.markers.setHover(h && !placingBody ? h.world : null, tone);
+    // A finger moving the view isn't pointing at anything: holes light up under it only while it aims
+    // (a wire, a probe, a leg being moved), not as it pans in passing.
+    const passing = this.touching && this.mode === 'select' && !drag && !this.pasting;
+    const marked = h && !placingBody && !passing ? h : null;
+    this.markers.setHover(marked ? marked.world : null, tone);
     this.markers.setStart(this.pending?.world ?? this.dragIn?.lead?.world ?? null);
-    const net = h && !placingBody ? this.sync.connectivity.members(h.ref) : [];
+    const net = marked ? this.sync.connectivity.members(marked.ref) : [];
     this.markers.setNet(net.map((r) => this.sync.holeWorld(r)).filter((v): v is THREE.Vector3 => !!v));
     this.probePins.set((this.store.doc.probes ?? []).map((p) => this.sync.holeWorld(p.at)));
     // While the circuit runs, the connected holes show the logic level like a probe would.
-    const v = h && this.sim.result.live ? this.sim.result.volts(h.ref) : null;
+    const v = marked && this.sim.result.live ? this.sim.result.volts(marked.ref) : null;
     this.markers.setLevel(
       v === null
         ? 'none'

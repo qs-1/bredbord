@@ -31,7 +31,9 @@ export type ToDesk =
   | { type: 'color'; color: WireColor }
   | { type: 'rotate' | 'duplicate' | 'delete' | 'deselect' | 'cancel' | 'undo' | 'redo' | 'power' | 'fit' }
   | { type: 'top'; on: boolean }
-  | { type: 'picture' };
+  | { type: 'picture' }
+  /** The app's settings that the desk carries out. */
+  | { type: 'settings'; graphics: 'high' | 'low'; magnifier: boolean; pinNames: boolean };
 
 export type FromDesk =
   | { type: 'ready' }
@@ -49,6 +51,10 @@ export type FromDesk =
       canRedo: boolean;
       top: boolean;
     }
+  /** A circuit was opened: its document as it now stands (how the app learns an example's parts). */
+  | { type: 'loaded'; doc: CircuitDoc }
+  /** The circuit just changed by the user's hand; the app may give a light vibration. */
+  | { type: 'bump' }
   | { type: 'picture'; jpeg: string }
   | { type: 'toast'; text: string };
 
@@ -106,6 +112,7 @@ async function start(): Promise<void> {
   store.subscribe(() => {
     state();
     if (loading) return;
+    post({ type: 'bump' });
     window.clearTimeout(timer);
     timer = window.setTimeout(() => post({ type: 'doc', doc: store.doc }), 400);
   });
@@ -120,6 +127,7 @@ async function start(): Promise<void> {
     loading = false;
     view.fit(sync.boardsBox(), false);
     state();
+    post({ type: 'loaded', doc: store.doc });
   };
 
   const handle = (m: ToDesk): void => {
@@ -129,10 +137,9 @@ async function start(): Promise<void> {
       case 'example': {
         const example = EXAMPLES[m.index];
         if (!example) return;
-        void Promise.resolve(example.make()).then((doc) => {
-          load(doc);
-          post({ type: 'doc', doc: store.doc });
-        });
+        // Only looked at, an example isn't the user's circuit yet: the app hears of its document when
+        // it's first changed, like any other edit.
+        void Promise.resolve(example.make()).then(load);
         return;
       }
       case 'place': {
@@ -173,6 +180,12 @@ async function start(): Promise<void> {
         return view.fit(sync.boardsBox());
       case 'top':
         return view.setTopView(m.on);
+      case 'settings':
+        tools.magnifier = m.magnifier;
+        tools.pinNames = m.pinNames;
+        sync.wires.setQuality(m.graphics === 'low' ? 'fast' : 'smooth');
+        view.invalidateShadows();
+        return;
       case 'picture': {
         // Small enough to keep one per circuit: 480 wide, the middle of the view.
         const from = view.snapshot();
