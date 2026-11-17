@@ -71,7 +71,7 @@ export function onAccountChange(fn: (a: Account) => void): () => void {
 let client: Promise<import('@supabase/supabase-js').SupabaseClient> | null = null;
 
 /** The Supabase client, loaded the first time it's needed; it then follows the sign-in. */
-function need(): Promise<import('@supabase/supabase-js').SupabaseClient> {
+export function need(): Promise<import('@supabase/supabase-js').SupabaseClient> {
   client ??= import('./supabase').then(({ supabase }) => {
     if (!supabase) throw new Error('Accounts aren’t available here');
     void supabase.auth.getSession().then(async ({ data }) => {

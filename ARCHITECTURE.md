@@ -177,10 +177,23 @@ The website is catching up with the phone, one step at a time. What it does so f
   in `vite.config.ts`). "Open on the desk" goes to `/app/?c=<code>`: the desk fetches the circuit
   again by its code, checks it like a file, and opens it as a copy named after it, then takes the
   code off the address so a reload doesn't open it again.
-- **Nothing on the desk is lost when a link opens.** `src/app/kept.ts` keeps the circuit that was
-  there aside in this browser first (if it can't, the shared one isn't opened), and "Back to …" in
-  the menu swaps it back, keeping the other aside in its place. At most 10 are kept; the oldest goes
-  after that. This stands in for My circuits, which the site doesn't have yet.
+- **My circuits.** The site keeps a list of circuits in the browser (`src/app/circuits.ts`, the same
+  shape and rules as the phone's `mobile/src/circuits.ts`), and the desk works on one of them at a
+  time. The store's autosave works as before; the list follows it (`keepDesk` in `ui.ts`). New
+  circuit, Open file, the examples and shared links each open as a new circuit in the list, so
+  nothing on the desk is lost and they no longer ask to save first. "My circuits" in the menu lists
+  them, to open, share or delete. Circuits kept aside by the first version of shared links join the
+  list once.
+- **Kept in the account** when signed in (`src/community/sync.ts`, the same rules as the phone's
+  `mobile/src/sync.ts`): every circuit of the account is kept there, private ones as `private`.
+  Changes go up 6 seconds after the last one; the account's copies come down on sign-in and when the
+  tab comes back to the front. The newest edit wins: a circuit changed here and not yet saved keeps
+  this browser's version. Deleting in one place deletes everywhere (deletions made offline wait in a
+  queue). Signing in, circuits made while signed out join the account; signing out, the account's
+  circuits stay in the browser, out of sight, until it signs in again, and the desk moves to one of
+  the browser's own. Limits from the database are shown as they come.
+- **Share** (menu, or My circuits): who can open a circuit (Only me, Anyone with the link, Public),
+  saved at once, and Copy link. Signed out, it asks to sign in.
 - A circuit that was deleted, hidden or made private looks the same from outside (`circuit_by_link`
   returns nothing for all three), so the page says one plain thing for all of them.
 - **Signing in** is Google only (no email). `src/ui/account-ui.ts` puts a "Sign in" button in the
@@ -197,7 +210,8 @@ The website is catching up with the phone, one step at a time. What it does so f
   the site works as before and links say shared circuits aren't available; without the Google client
   ID the Sign in button isn't shown.
 
-Not done yet: the account's circuits on the site (signing in doesn't sync anything yet), sharing from the site, Community and
+Not done yet: the site doesn't take circuit pictures (a picture the phone took is kept and shown);
+descriptions and tags can't be edited on the site (ones set on the phone are kept); Community and
 people's pages (the maker's name on a shared page is plain text until those exist), and link
 previews in chats (every link shows the same Bredbord preview, because the page is static).
 

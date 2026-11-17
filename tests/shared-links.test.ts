@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { emptyDoc } from '../src/engine/circuit';
+import { createDoc } from '../src/engine/circuit';
 import { codeFromPath, codeFromSearch, linkFor } from '../src/community/links';
-import { KEEP_MAX, keepAside, newestKept, takeNewest } from '../src/app/kept';
 import { partName, partPictureBody, partsInOrder } from '../src/ui/part-picture';
 
 describe('link addresses', () => {
@@ -40,49 +39,66 @@ describe('parts list', () => {
   });
 });
 
-describe('circuits kept aside', () => {
+describe('my circuits in this browser', () => {
   const items = new Map<string, string>();
-  let full = false;
   beforeEach(() => {
     items.clear();
-    full = false;
+    vi.resetModules();
     vi.stubGlobal('localStorage', {
       getItem: (k: string) => items.get(k) ?? null,
-      setItem: (k: string, v: string) => {
-        if (full) throw new DOMException('full', 'QuotaExceededError');
-        items.set(k, v);
-      },
+      setItem: (k: string, v: string) => void items.set(k, v),
       removeItem: (k: string) => void items.delete(k),
     });
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  const named = (name: string) => ({ ...emptyDoc(), name });
+  const named = (name: string) => ({ ...createDoc(), name });
 
-  it('keeps the newest first and gives it back', () => {
-    expect(newestKept()).toBeNull();
-    expect(keepAside(named('First'))).toBe(true);
-    expect(keepAside(named('Second'))).toBe(true);
-    expect(newestKept()?.name).toBe('Second');
+  it('starts with the desk’s circuit and the ones kept aside before', async () => {
+    items.set('breadboard-sim/kept', JSON.stringify([{ name: 'Old', at: 1, doc: named('Old') }]));
+    const c = await import('../src/app/circuits');
+    const id = c.startCircuits(named('Desk'));
+    expect(c.currentId()).toBe(id);
+    expect(
+      c
+        .listCircuits()
+        .map((x) => x.name)
+        .sort(),
+    ).toEqual(['Desk', 'Old']);
+    expect(items.has('breadboard-sim/kept')).toBe(false);
   });
 
-  it('swaps: going back keeps what was on the desk in its place', () => {
-    keepAside(named('Mine'));
-    const back = takeNewest(named('Shared'));
-    expect(back?.doc.name).toBe('Mine');
-    expect(newestKept()?.name).toBe('Shared');
-    expect(takeNewest(null)?.name).toBe('Shared');
-    expect(newestKept()).toBeNull();
+  it('marks changes to go up, and only clean once the same version went up', async () => {
+    const c = await import('../src/app/circuits');
+    const info = c.addCircuit(named('A'))!;
+    c.markSynced(info.id, info.rev, { synced: 't1' });
+    expect(c.getCircuit(info.id)!.dirty).toBe(false);
+    c.saveCircuit(info.id, named('B'));
+    const rev = c.getCircuit(info.id)!.rev;
+    c.saveCircuit(info.id, named('C'));
+    c.markSynced(info.id, rev, { synced: 't2' });
+    expect(c.getCircuit(info.id)!.dirty).toBe(true);
+    expect(c.getCircuit(info.id)!.name).toBe('C');
   });
 
-  it('says so when the browser won’t store it, so nothing replaces it', () => {
-    full = true;
-    expect(keepAside(named('Mine'))).toBe(false);
+  it('shows only the signed-in account’s; signed-out circuits join the account', async () => {
+    const c = await import('../src/app/circuits');
+    c.addCircuit(named('Mine here'));
+    c.setOwner('someone');
+    expect(c.listCircuits()).toHaveLength(0);
+    c.adopt('someone');
+    expect(c.listCircuits().map((x) => x.name)).toEqual(['Mine here']);
+    c.setOwner(null);
+    expect(c.listCircuits()).toHaveLength(0);
   });
 
-  it('keeps at most KEEP_MAX', () => {
-    for (let i = 0; i < KEEP_MAX + 3; i++) keepAside(named(`C${i}`));
-    expect(JSON.parse(items.get('breadboard-sim/kept')!)).toHaveLength(KEEP_MAX);
+  it('remembers account circuits deleted here, to delete them there', async () => {
+    const c = await import('../src/app/circuits');
+    c.setOwner('u');
+    const info = c.addCircuit(named('Shared'), { remote: { id: 'r1', code: 'x', owner: 'u' } })!;
+    c.deleteCircuit(info.id);
+    expect(c.readGone()).toEqual([{ id: 'r1', owner: 'u' }]);
+    expect(c.readCircuit(info.id)).toBeNull();
   });
 });
 

@@ -22,7 +22,7 @@ import { partName, partPictureBody } from './part-picture';
 
 const pic = (id: string): string => `<svg viewBox="0 0 64 48" aria-hidden="true">${partPictureBody(id)}</svg>`;
 
-const h = <K extends keyof HTMLElementTagNameMap>(
+export const h = <K extends keyof HTMLElementTagNameMap>(
   tag: K,
   props: Partial<HTMLElementTagNameMap[K]> & { className?: string } = {},
   ...kids: (Node | string)[]

@@ -4,7 +4,19 @@
 // wires them up and refreshes them all when anything changes.
 
 import { EXAMPLES } from '../app/example';
-import { keepAside, newestKept, takeNewest } from '../app/kept';
+import {
+  addCircuit,
+  currentId,
+  getCircuit,
+  isEmpty,
+  listCircuits,
+  readCircuit,
+  saveCircuit,
+  setCurrent,
+  startCircuits,
+} from '../app/circuits';
+import { followDesk, startSync, whenDeskUpdated, whenOwnerChanges, whenSyncFails } from '../community/sync';
+import { CircuitsUI } from './circuits-ui';
 import type { SceneSync } from '../app/scene-sync';
 import type { Simulation } from '../app/simulation';
 import type { Store } from '../app/store';
@@ -113,7 +125,19 @@ export class UI {
     this.bindDesk();
     this.bindKeys();
     this.bindAsk();
-    new AccountUI($('.bar1'), (m, ms) => this.toast(m, ms));
+    const account = new AccountUI($('.bar1'), (m, ms) => this.toast(m, ms));
+    this.circuits = new CircuitsUI({
+      open: (id) => this.switchTo(id),
+      newCircuit: () => this.newCircuit(),
+      deleted: (id) => {
+        if (id !== currentId()) return;
+        const next = listCircuits()[0];
+        if (next) this.switchTo(next.id);
+        else void this.placeNew(emptyDoc());
+      },
+      signIn: () => account.open(),
+      toast: (m, ms) => this.toast(m, ms),
+    });
     // The logo goes back to the landing page, offering to save first like New does. Opening it in
     // a new tab leaves this one as it is, so that needs no asking.
     $('#home').addEventListener('click', (e) => {
@@ -144,9 +168,92 @@ export class UI {
         15000,
       );
     if (location.hash.includes('debug')) this.startPerfReadout();
-    this.refreshKept();
+    this.startCircuits();
     const code = codeFromSearch(location.search);
     if (code) void this.openShared(code);
+  }
+
+  // ---- My circuits: the desk's circuit is one of a list, kept in the account when signed in ----
+
+  private readonly circuits: CircuitsUI;
+  /** The desk's document as last kept in the list, to tell real changes from redraws. */
+  private keptJson = '';
+  private keepTimer = 0;
+
+  private startCircuits(): void {
+    const id = startCircuits(this.store.doc);
+    const picked = id ? readCircuit(id) : null;
+    if (picked && !this.hasSomething() && !isEmpty(picked)) {
+      this.keptJson = JSON.stringify(picked);
+      void this.swapIn(picked);
+    } else this.keptJson = JSON.stringify(this.store.doc);
+    this.store.subscribe(() => {
+      window.clearTimeout(this.keepTimer);
+      this.keepTimer = window.setTimeout(() => this.keepDesk(), 600);
+    });
+    window.addEventListener('pagehide', () => this.keepDesk());
+    followDesk(() => currentId());
+    whenDeskUpdated((id) => {
+      const doc = readCircuit(id);
+      if (!doc) return;
+      // Changed here and not kept yet: this browser's edit is the newest, so it stays and goes up.
+      if (JSON.stringify(this.store.doc) !== this.keptJson) return this.keepDesk();
+      this.keptJson = JSON.stringify(doc);
+      void this.swapIn(doc).then(() => this.toast('Updated with the newer version from your account'));
+    });
+    whenOwnerChanges((uid) => {
+      this.keepDesk();
+      const cur = getCircuit(currentId() ?? '');
+      if (cur && cur.owner === uid) return;
+      const next = listCircuits()[0];
+      if (next) this.switchTo(next.id);
+      else void this.placeNew(emptyDoc());
+    });
+    whenSyncFails((text) => this.toast(text, 9000));
+    startSync();
+  }
+
+  /** Keeps the desk's circuit in the list if it changed since it was last kept. */
+  private keepDesk(): void {
+    window.clearTimeout(this.keepTimer);
+    const id = currentId();
+    const json = JSON.stringify(this.store.doc);
+    if (!id || json === this.keptJson) return;
+    if (saveCircuit(id, this.store.doc)) this.keptJson = json;
+  }
+
+  /** Puts one of My circuits on the desk. */
+  private switchTo(id: string): void {
+    this.keepDesk();
+    const doc = readCircuit(id);
+    if (!doc) return this.toast('Couldn’t open that circuit');
+    setCurrent(id);
+    this.keptJson = JSON.stringify(doc);
+    void this.swapIn(doc);
+  }
+
+  /**
+   * Puts a circuit on the desk as a new one in My circuits, so nothing that was there is lost. An
+   * empty desk is reused rather than leaving an empty circuit behind.
+   */
+  private placeNew(doc: CircuitDoc): Promise<void> {
+    this.keepDesk();
+    const cur = currentId();
+    if (cur && getCircuit(cur) && !this.hasSomething()) {
+      if (!saveCircuit(cur, doc)) {
+        this.toast('Couldn’t keep it in this browser: its storage is full or blocked');
+        return Promise.resolve();
+      }
+    } else {
+      const info = addCircuit(doc);
+      if (!info) {
+        this.toast('Couldn’t keep it in this browser: its storage is full or blocked. Save your circuit to a file');
+        return Promise.resolve();
+      }
+      setCurrent(info.id);
+    }
+    this.keptJson = JSON.stringify(doc);
+    return this.swapIn(doc);
   }
 
   // ---- bar 1: the name, running, the menu ----
@@ -187,7 +294,7 @@ export class UI {
         b.setAttribute('role', 'menuitem');
         b.addEventListener('click', () => {
           closeMenus();
-          this.saveFirst('example', () => this.openExample(example), example.title);
+          this.openExample(example);
         });
         list.append(b);
       }
@@ -196,10 +303,14 @@ export class UI {
       b.addEventListener('click', () => {
         closeMenus();
         const what = b.dataset.file;
-        if (what === 'new') this.saveFirst('new', () => this.newCircuit());
-        else if (what === 'open') this.saveFirst('open', () => $<HTMLInputElement>('#import-file').click());
-        else if (what === 'add') $<HTMLInputElement>('#add-file').click();
-        else if (what === 'back') this.backToKept();
+        if (what === 'new') this.newCircuit();
+        else if (what === 'open') $<HTMLInputElement>('#import-file').click();
+        else if (what === 'mine') this.circuits.openList();
+        else if (what === 'share') {
+          this.keepDesk();
+          const id = currentId();
+          if (id) this.circuits.openShare(id);
+        } else if (what === 'add') $<HTMLInputElement>('#add-file').click();
         else this.saveToFile();
       }),
     );
@@ -450,7 +561,7 @@ export class UI {
         e.preventDefault();
         closeMenus();
         if (k === 's') this.saveToFile();
-        else this.saveFirst('open', () => $<HTMLInputElement>('#import-file').click());
+        else $<HTMLInputElement>('#import-file').click();
         return;
       }
       if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -629,12 +740,12 @@ export class UI {
     );
   }
 
+  /** A new, empty circuit in My circuits; the one that was on the desk stays there. */
   private newCircuit(): void {
-    this.tools.powerOff();
-    this.tools.dropUnfinished();
-    this.store.replace(emptyDoc());
-    this.view.fit(this.sync.boardsBox(), false);
-    this.toast('New circuit');
+    const had = this.hasSomething();
+    void this.placeNew(emptyDoc()).then(() =>
+      this.toast(had ? 'New circuit. The other one is in My circuits' : 'New circuit'),
+    );
   }
 
   /** Puts another circuit on the desk; a big one takes a moment to build, so the loader covers the desk. */
@@ -649,7 +760,7 @@ export class UI {
 
   private openExample(example: (typeof EXAMPLES)[number]): void {
     void Promise.resolve(example.make()).then(
-      (doc) => this.swapIn(doc),
+      (doc) => this.placeNew(doc),
       () => this.toast('Couldn’t load that example. Check the connection and try again'),
     );
   }
@@ -657,9 +768,8 @@ export class UI {
   // ---- shared links ----
 
   /**
-   * Opens a shared circuit (/app/?c=<code>, from its page) as a copy. Whatever was on the desk is kept
-   * aside in this browser first, and "Back to …" in the menu brings it back; if it can't be kept, the
-   * shared one isn't opened.
+   * Opens a shared circuit (/app/?c=<code>, from its page) as a copy: a new circuit in My circuits, so
+   * whatever was on the desk stays there.
    */
   private async openShared(code: string): Promise<void> {
     // Take the code off the address, so reloading doesn't open it again over later work.
@@ -688,48 +798,19 @@ export class UI {
     const title = result.circuit.title.trim() || 'Untitled circuit';
     const doc = { ...read.doc, name: title };
     const go = (): void => {
-      const mine = this.hasSomething() ? this.store.doc.name?.trim() || 'Untitled circuit' : null;
-      if (mine && !keepAside(this.store.doc)) {
-        this.toast(
-          'Couldn’t keep your circuit in this browser, so the shared one wasn’t opened. Save yours to a file first',
-          9000,
-        );
-        return;
-      }
-      void this.swapIn(doc).then(() => {
-        this.refreshKept();
+      const had = this.hasSomething();
+      void this.placeNew(doc).then(() => {
         const by = result.circuit.maker ? ` by ${result.circuit.maker.username}` : '';
         this.toast(
-          mine
-            ? `Opened “${title}”${by}, as a copy. Your “${mine}” is kept: Menu, then Back to “${mine}”`
+          had
+            ? `Opened “${title}”${by}, as a copy. Your circuit is in My circuits`
             : `Opened “${title}”${by}, as a copy`,
-          mine ? 8000 : 3000,
+          had ? 6000 : 3000,
         );
       });
     };
     if (read.notes.length) this.confirmPartial(title, read.notes, go);
     else go();
-  }
-
-  /** Puts the newest circuit kept aside back on the desk, keeping what's there aside in its place. */
-  private backToKept(): void {
-    const current = this.hasSomething() ? this.store.doc : null;
-    const kept = takeNewest(current);
-    if (!kept) {
-      this.toast('Couldn’t bring it back: this browser’s storage is blocked');
-      this.refreshKept();
-      return;
-    }
-    void this.swapIn(kept.doc).then(() => {
-      this.refreshKept();
-      this.toast(current ? `Back to “${kept.name}”. The other circuit is kept in its place` : `Back to “${kept.name}”`);
-    });
-  }
-
-  private refreshKept(): void {
-    const kept = newestKept();
-    $('#m-back').hidden = !kept;
-    if (kept) setText($('#m-back-t'), `Back to “${kept.name}”`);
   }
 
   private saveToFile(): void {
@@ -757,7 +838,7 @@ export class UI {
           if (add) {
             this.tools.addCircuit(read.doc, 'right');
             this.toast(`Added ${file.name} beside the circuit. Drag its boards where you want them`);
-          } else void this.swapIn(read.doc).then(() => this.toast(`Opened ${file.name}`));
+          } else void this.placeNew(read.doc).then(() => this.toast(`Opened ${file.name}`));
         };
         if (read.notes.length) this.confirmPartial(file.name, read.notes, go);
         else go();
