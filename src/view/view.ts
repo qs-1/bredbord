@@ -225,6 +225,12 @@ export class View {
     pmrem.dispose();
   }
 
+  /** The view as it is now, drawn afresh so the canvas can be copied from (for a circuit's picture). */
+  snapshot(): HTMLCanvasElement {
+    this.draw();
+    return this.canvas;
+  }
+
   /** Ask for a redraw on the next frame. */
   invalidate(): void {
     this.dirty = true;

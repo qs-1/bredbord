@@ -4,3 +4,5 @@ docs
 package-lock.json
 # Hand-written design mockups, one file each; not part of the app.
 mockups/
+# The phone app: its own repo, with its own formatting check.
+mobile/

@@ -955,6 +955,11 @@ export class Tools {
     return !!this.selection || this.group.length > 0;
   }
 
+  /** How many things are selected. */
+  get selectionCount(): number {
+    return this.selected.length;
+  }
+
   /** Puts the selection away. */
   deselect(): void {
     this.setGroup([]);

@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover" />
+    <title>Bredbord desk</title>
+  </head>
+  <body>
+    <!-- The desk on its own, for the phone app to show inside its workbench screen: the 3D view and
+         the simulator, and none of the website's bars, panels or menus. The app draws those itself
+         and talks to this page in messages (src/embed.ts). -->
+    <canvas id="viewport" tabindex="-1"></canvas>
+    <script type="module" src="/src/embed.ts"></script>
+  </body>
+</html>

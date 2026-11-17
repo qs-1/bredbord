@@ -1,0 +1,57 @@
+/* The desk on its own (embed/index.html): only what the 3D view and the tools draw on the page. */
+@import './fonts.css';
+
+:root {
+  --ink: #1f1d1a;
+  --line-2: rgba(31, 29, 26, 0.2);
+  --card: #ffffff;
+  --desk: #e9e7e1;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 8px 24px rgba(0, 0, 0, 0.07);
+  --font: 'Atkinson Hyperlegible Next', system-ui, sans-serif;
+  --mono: 'Atkinson Hyperlegible Mono', ui-monospace, monospace;
+  --font-label: 'Barlow Semi Condensed', sans-serif;
+  --font-mono: 'Sometype Mono', monospace;
+  color-scheme: light;
+}
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--desk);
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+#viewport {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  outline: none;
+  touch-action: none;
+}
+[hidden] {
+  display: none !important;
+}
+.box-select {
+  position: fixed;
+  z-index: 50;
+  pointer-events: none;
+  background: rgba(31, 29, 26, 0.05);
+  border: 1px dashed var(--ink);
+}
+.loupe {
+  position: fixed;
+  z-index: 60;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  border: 2px solid var(--card);
+  box-shadow:
+    0 0 0 1px var(--line-2),
+    var(--shadow);
+  pointer-events: none;
+}
