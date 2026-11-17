@@ -183,12 +183,21 @@ The website is catching up with the phone, one step at a time. What it does so f
   after that. This stands in for My circuits, which the site doesn't have yet.
 - A circuit that was deleted, hidden or made private looks the same from outside (`circuit_by_link`
   returns nothing for all three), so the page says one plain thing for all of them.
-- The Supabase client (`src/community/supabase.ts`) is loaded only when a link is opened, so the desk
-  doesn't carry it otherwise. It reads `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`
-  (`.env.local` for development, Vercel's environment variables for the site); without them the site
-  works as before and links say shared circuits aren't available.
+- **Signing in** is Google only (no email). `src/ui/account-ui.ts` puts a "Sign in" button in the
+  top bar (the person's part picture once signed in) and a dialog for picking a name the first time,
+  changing name and picture, signing out and deleting the account (the `delete-account` function).
+  `src/community/account.ts` has the same rules as the app's `mobile/src/account.ts`. Sign-in uses
+  Google's own button and popup (Google Identity Services); Google's ID token is traded for a Supabase
+  session with `signInWithIdToken`, so nobody sees a Supabase address and no redirect URL is needed.
+  The sign-in is kept in localStorage (`bredbord-auth`).
+- The Supabase client (`src/community/supabase.ts`) is loaded only when a link is opened, someone
+  starts signing in, or this browser is already signed in, so the desk doesn't carry it otherwise. It
+  reads `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` and `VITE_GOOGLE_CLIENT_ID`
+  (`.env.local` for development, Vercel's environment variables for the site). Without the first two
+  the site works as before and links say shared circuits aren't available; without the Google client
+  ID the Sign in button isn't shown.
 
-Not done yet: sign-in, the account's circuits on the site, sharing from the site, Community and
+Not done yet: the account's circuits on the site (signing in doesn't sync anything yet), sharing from the site, Community and
 people's pages (the maker's name on a shared page is plain text until those exist), and link
 previews in chats (every link shows the same Bredbord preview, because the page is static).
 

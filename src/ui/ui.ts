@@ -14,6 +14,7 @@ import { readDoc } from '../engine/document';
 import { codeFromSearch } from '../community/links';
 import { PARTS } from '../engine/parts';
 import type { View } from '../view/view';
+import { AccountUI } from './account-ui';
 import { CodePanel } from './codepanel';
 import { Dock } from './dock';
 import { whileBusy } from '../loading';
@@ -112,6 +113,7 @@ export class UI {
     this.bindDesk();
     this.bindKeys();
     this.bindAsk();
+    new AccountUI($('.bar1'), (m, ms) => this.toast(m, ms));
     // The logo goes back to the landing page, offering to save first like New does. Opening it in
     // a new tab leaves this one as it is, so that needs no asking.
     $('#home').addEventListener('click', (e) => {

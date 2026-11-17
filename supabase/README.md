@@ -29,6 +29,15 @@ function, inside Supabase. It is never put in the app, the website, this repo or
    - In Supabase, Authentication, then Sign In / Providers, then Google: paste the client ID and
      secret, and turn it on.
    - It comes back to the app at `bredbord://auth` too (step 3).
+     4b. **Sign-in with Google on the website.** The site uses Google's own button (no redirect through
+     Supabase, so no redirect URL to add for it):
+   - In Google Cloud Console, in the same project, make another OAuth client of type "Web
+     application". Under "Authorised JavaScript origins" add `https://bredbord.vercel.app` and
+     `http://localhost:5173`. No redirect URIs are needed for it.
+   - In Supabase, Authentication, then Sign In / Providers, then Google: add this client's ID to
+     "Client IDs" (the list of client IDs whose ID tokens are accepted), next to the first one.
+   - In Vercel, Project Settings, then Environment Variables, add `VITE_GOOGLE_CLIENT_ID` (that client
+     ID; it is public), with `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`, then redeploy.
 5. **The delete-account function.** Edge Functions, Deploy a new function, name it
    `delete-account`, and paste `functions/delete-account/index.ts`. Supabase gives it the keys it
    needs itself.

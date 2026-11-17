@@ -2784,3 +2784,100 @@ select[data-dd] {
     max-height: var(--card-max, 70%);
   }
 }
+
+/* ---------- account: the top bar's button and its dialog ---------- */
+.acct-b {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--r);
+  color: var(--ink-2);
+  white-space: nowrap;
+  transition:
+    background-color 0.12s var(--ease),
+    color 0.12s var(--ease);
+}
+.acct-b:hover {
+  background: var(--raised);
+  color: var(--ink);
+}
+.acct-b.pic {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  padding: 0;
+}
+.acct-b.pic svg,
+.acct-me svg {
+  display: block;
+  width: 32px;
+  height: 24px;
+  border-radius: 4px;
+  background: var(--desk);
+}
+.acct-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.acct-head h3 {
+  margin: 0;
+}
+.acct-me svg {
+  width: 48px;
+  height: 36px;
+}
+.acct .flabel {
+  display: block;
+  margin: 12px 0 6px;
+}
+.acct .inp {
+  height: 32px;
+}
+.acct-name {
+  display: flex;
+  gap: 8px;
+}
+.acct-pics {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+.acct-pics .choice {
+  padding: 3px;
+}
+.acct-pics .choice svg {
+  display: block;
+  margin: 0;
+}
+.acct-g {
+  min-height: 44px;
+  margin: 4px 0 12px;
+  color: var(--ink-3);
+}
+.acct-err {
+  margin: 10px 0 0 !important;
+  color: #b4271d !important;
+}
+.acct-small {
+  margin: 12px 0 16px !important;
+  font-size: 12px;
+  color: var(--ink-3) !important;
+}
+.acct .dlg-b {
+  margin-top: 18px;
+}
+.btn.bad {
+  color: #b4271d;
+}
+.primary.bad {
+  background: #b4271d;
+}
+.primary.bad:hover {
+  background: #96201a;
+}
+.primary:disabled,
+.btn:disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}

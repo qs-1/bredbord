@@ -85,3 +85,18 @@ describe('circuits kept aside', () => {
     expect(JSON.parse(items.get('breadboard-sim/kept')!)).toHaveLength(KEEP_MAX);
   });
 });
+
+describe('account names', async () => {
+  const { cleanName, nameProblem, PICTURES } = await import('../src/community/account');
+
+  it('tidies a name the way the database wants it', () => {
+    expect(cleanName('  Test Maker ')).toBe('test_maker');
+    expect(nameProblem('test_maker')).toBeNull();
+    for (const bad of ['ab', 'a'.repeat(21), 'no-dash', 'Caps']) expect(nameProblem(bad)).not.toBeNull();
+  });
+
+  it('only offers pictures the database allows, each with a drawing', () => {
+    expect(PICTURES).toHaveLength(15);
+    for (const id of PICTURES) expect(partPictureBody(id)).not.toBe('');
+  });
+});
