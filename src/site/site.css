@@ -257,3 +257,30 @@ body {
 .cempty:not([hidden]) {
   animation: rise 0.22s var(--ease) both;
 }
+
+/* Sort and tags keep one width whatever they say ("Most remixed", "3 tags"), so nothing beside them
+   moves. On a narrow screen the search takes its own row above them. */
+.tools .sel.dd,
+.tools .sel.tagb {
+  width: 136px;
+  justify-content: space-between;
+}
+.tools .sel.tagb .v {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 520px) {
+  .tools {
+    flex-wrap: wrap;
+  }
+  .tools .inp {
+    flex-basis: 100%;
+  }
+  .tools .sel.dd,
+  .tools .mw {
+    flex: 1;
+  }
+  .tools .sel.tagb {
+    width: 100%;
+  }
+}
