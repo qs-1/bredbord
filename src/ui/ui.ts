@@ -28,6 +28,7 @@ import { codeFromSearch } from '../community/links';
 import { PARTS } from '../engine/parts';
 import type { View } from '../view/view';
 import { AccountUI } from './account-ui';
+import { getAccount } from '../community/account';
 import { CodePanel } from './codepanel';
 import { Dock } from './dock';
 import { whileBusy } from '../loading';
@@ -667,11 +668,13 @@ export class UI {
   }
 
   /**
-   * Leaving for the home page offers to save to a file first. The circuit stays in My circuits (and
-   * the account, when signed in), but a file is the only copy that doesn't depend on this browser.
+   * Leaving for the home page offers to save to a file first when signed out: the circuit stays in My
+   * circuits, but a file is the only copy that doesn't depend on this browser. Signed in, it's kept in
+   * the account too, so nothing is asked.
    */
   private saveFirst(then: () => void): void {
-    if (!this.hasSomething() || !this.store.changed) return then();
+    const a = getAccount();
+    if (!this.hasSomething() || !this.store.changed || (a.session && a.profile)) return then();
     const n = this.store.doc.name?.trim() || 'Untitled circuit';
     setText($('#ask-t'), `Save “${n}” first?`);
     setText($('#ask-p'), 'It stays in My circuits and will be here when you come back, but only a file keeps it safe.');
