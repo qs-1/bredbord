@@ -5,7 +5,10 @@
   ],
   "rewrites": [
     { "source": "/c/:code", "destination": "/c/index.html" },
-    { "source": "/privacy", "destination": "/privacy/index.html" }
+    { "source": "/privacy", "destination": "/privacy/index.html" },
+    { "source": "/community", "destination": "/community/index.html" },
+    { "source": "/u/:name", "destination": "/u/index.html" },
+    { "source": "/account", "destination": "/account/index.html" }
   ],
   "git": {
     "deploymentEnabled": {

@@ -12,9 +12,12 @@ export function codeFromPath(path: string): string | null {
   return m ? m[1] : null;
 }
 
-/** The link code in the desk's address (/app/?c=<code>), or null. */
-export function codeFromSearch(search: string): string | null {
-  const code = new URLSearchParams(search).get('c');
+/**
+ * The link code in the desk's address, or null: /app/?play=<code> plays it, /app/?remix=<code> keeps
+ * a credited copy (and the older /app/?c=<code> does the same as remix).
+ */
+export function codeFromSearch(search: string, key: 'play' | 'remix' | 'c' = 'c'): string | null {
+  const code = new URLSearchParams(search).get(key);
   return code && /^[A-Za-z0-9_-]{4,64}$/.test(code) ? code : null;
 }
 

@@ -1,0 +1,259 @@
+/* The website's pages: the desk's menus, dialogs and controls (styles.css), the shared page's type and
+   layout (shared.css), and what's only here: a page that scrolls, the top bar's links, and circuit
+   cards. */
+@import '../styles.css';
+@import '../shared/shared.css';
+@import './cards.css';
+
+html,
+body {
+  height: auto;
+}
+html {
+  overscroll-behavior: auto;
+}
+body {
+  display: block;
+  min-height: 100vh;
+  overflow: visible;
+  touch-action: auto;
+  font-size: 14px;
+  --pw: 0px;
+}
+@media (pointer: coarse) {
+  body {
+    -webkit-user-select: auto;
+    user-select: auto;
+  }
+}
+
+/* ---------- the top bar ---------- */
+.top {
+  gap: 8px;
+}
+.top .sim {
+  margin-left: 4px;
+}
+
+/* A heading in the logo's pixel capitals (pixel-text.ts), two screen pixels per art pixel and more on
+   wide screens. */
+.pxh {
+  margin: 8px 0 20px;
+  line-height: 0;
+}
+.pxh svg {
+  display: block;
+  width: calc(var(--w) * var(--k) * var(--u));
+  height: calc(5 * var(--k) * var(--u));
+  --k: 3;
+  color: var(--ink);
+}
+@media (min-width: 760px) {
+  .pxh svg {
+    --k: 4;
+  }
+}
+
+.btn,
+.primary {
+  gap: 6px;
+}
+.btn .ic,
+.primary .ic {
+  margin-left: -2px;
+}
+.ib.line {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line-2);
+  background: var(--card);
+}
+.ib.line:hover {
+  background: var(--raised);
+}
+
+.site-toast {
+  position: fixed;
+  left: 50%;
+  top: 64px;
+  max-width: calc(100% - 32px);
+}
+
+/* ---------- Community ---------- */
+.wide {
+  max-width: 1100px;
+}
+.tools {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+.tools .inp {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  font-size: 14px;
+}
+.tools .sel.dd {
+  width: auto;
+  height: 32px;
+  font-size: 14px;
+  padding-left: 10px;
+}
+.tools select.sel {
+  width: auto;
+}
+
+/* ---------- a person's page ---------- */
+.who {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.who .me {
+  display: block;
+  width: 72px;
+  height: 54px;
+  margin: 0 auto;
+  border-radius: 6px;
+  background: var(--desk);
+}
+.who h1 {
+  margin: 10px 0 0;
+}
+.who .who-sub {
+  margin: 0;
+  color: var(--ink-2);
+}
+.counts {
+  display: flex;
+  gap: 28px;
+  justify-content: center;
+  margin: 14px 0 0;
+}
+.counts b {
+  display: block;
+  font-size: 16px;
+  font-weight: 500;
+}
+.counts span {
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+/* ---------- Account ---------- */
+.arows {
+  margin-top: 12px;
+}
+.arow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.arow:last-child {
+  border-bottom: 0;
+}
+.arow > .grow {
+  min-width: 0;
+}
+.arow .val {
+  color: var(--ink-2);
+}
+.arow .me {
+  display: block;
+  width: 40px;
+  height: 30px;
+  border-radius: 4px;
+  background: var(--desk);
+}
+.arow.bad > .grow {
+  color: #b4271d;
+}
+.edit {
+  padding: 4px 0 16px;
+  border-bottom: 1px solid var(--line);
+  animation: rise 0.18s var(--ease) both;
+}
+.edit .acct-name .inp {
+  height: 32px;
+  font-size: 14px;
+}
+.edit .acct-err {
+  margin-top: 8px !important;
+}
+
+/* ---------- a circuit's page ---------- */
+.shared .maker a {
+  color: var(--ink);
+}
+.like[aria-pressed='true'] {
+  color: #b4271d;
+}
+.acts .ib.line {
+  color: var(--ink-2);
+}
+.reasons {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.reasons .choice {
+  padding: 10px 12px;
+}
+
+.vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.mi.bad {
+  color: #b4271d;
+}
+.page > .note {
+  color: var(--ink-2);
+}
+/* The tags button looks like the sort dropdown but opens a menu of ticks (menus.ts's .dd is for selects). */
+.tools .sel.tagb {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: auto;
+  height: 32px;
+  padding: 0 3px 0 10px;
+  font-size: 14px;
+  white-space: nowrap;
+  transition: background-color 0.12s var(--ease);
+}
+.tools .sel.tagb .ic {
+  color: var(--ink-3);
+}
+.tools .sel.tagb:hover,
+.tools .sel.tagb[aria-expanded='true'] {
+  background: var(--raised);
+}
+
+/* ---------- moderation (the admin's Account page) ---------- */
+.mod {
+  margin-top: 36px;
+}
+.mod h2 {
+  margin: 20px 0 0;
+  font-size: 16px;
+  font-weight: 500;
+}
+.mod .arow a {
+  color: var(--ink);
+}
+.mod .note {
+  margin: 8px 0 0;
+  color: var(--ink-3);
+}
+.cempty:not([hidden]) {
+  animation: rise 0.22s var(--ease) both;
+}

@@ -19,6 +19,8 @@ export class Store {
   private cleanAt = -1;
   /** Whether changes are autosaved to this browser. */
   private persist: boolean;
+  /** Set while a shared circuit is being played: nothing is saved until it's let go. */
+  private held = false;
   /** Set while autosave is failing, so the warning is given once rather than on every change. */
   private saveFailing = false;
 
@@ -96,6 +98,12 @@ export class Store {
     this.emit();
   }
 
+  /** Stops autosave (`true`) while a shared circuit is only being played, and starts it again. */
+  holdSaves(hold: boolean): void {
+    this.held = hold;
+    if (hold) window.clearTimeout(this.saveTimer);
+  }
+
   /** Whether there are edits since the circuit was opened or last saved to a file. */
   get changed(): boolean {
     return this.past.length !== this.cleanAt;
@@ -134,7 +142,7 @@ export class Store {
 
   private emit(): void {
     for (const fn of this.listeners) fn();
-    if (!this.persist) return;
+    if (!this.persist || this.held) return;
     window.clearTimeout(this.saveTimer);
     this.saveTimer = window.setTimeout(() => this.save(), 400);
   }

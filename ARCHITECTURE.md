@@ -168,15 +168,50 @@ bucket, each person writing only their own folder.
 
 ### On the website
 
-The website is catching up with the phone, one step at a time. What it does so far:
+The website has what the phone has: accounts, My circuits kept in the account, sharing and
+Community. Pages, each its own Vite page so none of them loads the simulator (only `/app/` does):
 
-- **Shared links**, `/c/<link code>` (the address the app hands out). `c/index.html` and
-  `src/shared/shared.ts` show the circuit's picture, title, maker, description and parts (pictures
-  and names from `src/ui/part-picture.ts`, which `build:desk` also uses for the app's copy). Vercel
-  serves that page for any `/c/...` address (a rewrite in `vercel.json`; the dev server does the same
-  in `vite.config.ts`). "Open on the desk" goes to `/app/?c=<code>`: the desk fetches the circuit
-  again by its code, checks it like a file, and opens it as a copy named after it, then takes the
-  code off the address so a reload doesn't open it again.
+| Address      | Files                                                | What            |
+| ------------ | ---------------------------------------------------- | --------------- |
+| `/community` | `community/index.html`, `src/site/community-page.ts` | public circuits |
+| `/c/<code>`  | `c/index.html`, `src/shared/shared.ts`               | one circuit     |
+| `/u/<name>`  | `u/index.html`, `src/site/profile-page.ts`           | a person's page |
+| `/account`   | `account/index.html`, `src/site/account-page.ts`     | your account    |
+| `/privacy`   | `privacy/index.html`, `src/privacy/privacy.ts`       | what's kept     |
+
+Vercel serves them by rewrites in `vercel.json`; the dev server does the same in `vite.config.ts`.
+`src/site/site.ts` is what they share: the top bar (logo, the account button, Open the simulator),
+the desk's menus, dropdowns and tooltips (`menus.ts`), short messages, circuit cards, and a small
+dialog. `src/site/site.css` uses the desk's `styles.css` for those controls and `shared.css` for the
+page's type, and makes the page scroll. The queries are in `src/community/community.ts`, the same as
+the phone's `mobile/src/community.ts`.
+
+- **Community**: its name in the logo's pixel capitals (`src/ui/pixel-text.ts`), search by title,
+  Popular (most liked), New or Most remixed, filter by tags, 24 at a time with Show more. What's
+  picked is kept in the address. Changing a filter dims the cards until the new ones arrive.
+- **The landing page** has the 8 most liked circuits below the board, and a link to Community
+  (`src/landing/community-strip.ts`). They're fetched only when nearly scrolled to; with nothing
+  shared, or no Supabase, the section isn't there. Cards are `src/site/cards.ts`, which doesn't bring
+  the desk's styles, so the landing page can use it.
+- **A circuit's page**, `/c/<link code>` (the address the app hands out): picture (or a drawing of
+  its biggest part), title, maker (linking to their page), description and parts (pictures and names
+  from `src/ui/part-picture.ts`, which `build:desk` also uses for the app's copy). Play, Remix, a like
+  (signed out, it asks to sign in; the count changes at once and goes back if saving fails) and Copy
+  link. The ⋯ menu at the top right has Report (spam or offensive; needs an account) and, for the
+  admin, Hide; on your own circuit it has who can see it and Delete instead.
+- **Play** goes to `/app/?play=<code>`: the desk fetches the circuit by its code, checks it like a
+  file, and puts it on the desk without keeping it. Autosave holds off (`Store.holdSaves`), My
+  circuits doesn't change, and a bar over the desk says so, with "Remix to keep it" (keeps it as it
+  is now) and Close (brings back the circuit that was there). Reloading also brings that back.
+- **Remix** goes to `/app/?remix=<code>` (the older `/app/?c=<code>` does the same): a copy in My
+  circuits, credited to the original (`remixOf`, saved as `remix_of` and `is_remix`, as the phone
+  does). Both take the code off the address so a reload doesn't open it again. Remixing works
+  signed out; the remix joins the account on sign-in like any other circuit.
+- **A person's page**: picture, name, when they joined, counts of public circuits, likes and remixes,
+  and their public circuits. On your own page a gear leads to Account.
+- **Account**: change name and picture, sign out, delete the account (the `delete-account`
+  function). The desk's own settings stay in the desk's menu. For the admin it also lists open
+  reports (one row per circuit, with its reasons; Dismiss or Hide) and hidden circuits (Unhide).
 - **My circuits.** The site keeps a list of circuits in the browser (`src/app/circuits.ts`, the same
   shape and rules as the phone's `mobile/src/circuits.ts`), and the desk works on one of them at a
   time. The store's autosave works as before; the list follows it (`keepDesk` in `ui.ts`). New
@@ -197,8 +232,9 @@ The website is catching up with the phone, one step at a time. What it does so f
 - A circuit that was deleted, hidden or made private looks the same from outside (`circuit_by_link`
   returns nothing for all three), so the page says one plain thing for all of them.
 - **Signing in** is Google only (no email). `src/ui/account-ui.ts` puts a "Sign in" button in the
-  top bar (the person's part picture once signed in) and a dialog for picking a name the first time,
-  changing name and picture, signing out and deleting the account (the `delete-account` function).
+  top bar of the desk and of every page (the person's part picture once signed in, the same width so
+  nothing moves) and a dialog with Google's button and, the first time, a name to pick. Signed in,
+  the picture opens a menu with Profile (in a new tab from the desk) and Sign out.
   `src/community/account.ts` has the same rules as the app's `mobile/src/account.ts`. Sign-in uses
   Google's own button and popup (Google Identity Services); Google's ID token is traded for a Supabase
   session with `signInWithIdToken`, so nobody sees a Supabase address and no redirect URL is needed.
@@ -211,9 +247,11 @@ The website is catching up with the phone, one step at a time. What it does so f
   ID the Sign in button isn't shown.
 
 Not done yet: the site doesn't take circuit pictures (a picture the phone took is kept and shown);
-descriptions and tags can't be edited on the site (ones set on the phone are kept); Community and
-people's pages (the maker's name on a shared page is plain text until those exist), and link
-previews in chats (every link shows the same Bredbord preview, because the page is static).
+descriptions and tags can't be edited on the site (ones set on the phone are kept); link previews in
+chats (every link shows the same Bredbord preview, because the pages are static). Changing who can see a circuit or deleting it from its page goes
+straight to the account; a browser with that circuit changed and not yet saved puts its own version
+back (the newest edit wins). The pages have
+had only a quick look in a browser, with no public circuits in the database yet.
 
 ## Tests and CI
 

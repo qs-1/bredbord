@@ -2787,8 +2787,11 @@ select[data-dd] {
 
 /* ---------- account: the top bar's button and its dialog ---------- */
 .acct-b {
+  width: 64px;
   height: 32px;
-  padding: 0 10px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
   border-radius: var(--r);
   color: var(--ink-2);
   white-space: nowrap;
@@ -2800,11 +2803,11 @@ select[data-dd] {
   background: var(--raised);
   color: var(--ink);
 }
-.acct-b.pic {
-  display: inline-grid;
-  place-items: center;
-  width: 40px;
-  padding: 0;
+.acct-b.waiting {
+  visibility: hidden;
+}
+.acct-menu {
+  min-width: 160px;
 }
 .acct-b.pic svg,
 .acct-me svg {
@@ -2990,4 +2993,52 @@ select[data-dd] {
   .mine-list li {
     animation: none;
   }
+}
+
+/* ---------- playing a shared circuit: a thin bar over the top of the desk ---------- */
+.playbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: var(--pw);
+  z-index: 14;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  padding: 0 8px 0 14px;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  opacity: 0;
+  transform: translateY(-6px);
+  transition:
+    opacity 0.16s var(--ease),
+    transform 0.16s var(--ease);
+}
+.playbar.show {
+  opacity: 1;
+  transform: none;
+}
+.playbar:not(.show) {
+  pointer-events: none;
+}
+.playbar b {
+  font-weight: 500;
+}
+.playbar .pb-t {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.playbar .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.playbar .grow {
+  flex: 1;
+}
+.desk.playing .toast {
+  top: 56px;
 }

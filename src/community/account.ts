@@ -39,7 +39,7 @@ export const nameProblem = (name: string): string | null =>
   /^[a-z0-9_]{3,20}$/.test(name) ? null : 'Use 3 to 20 lower-case letters, numbers or _';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
-const HAS_SUPABASE = !!(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
+export const HAS_SUPABASE = !!(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
 
 /** Whether this copy of the site can sign people in at all. */
 export const canSignIn = HAS_SUPABASE && !!GOOGLE_CLIENT_ID;

@@ -245,6 +245,43 @@
           transform: none;
         }
       }
+      /* Below the board: Community (src/landing/community-strip.ts). */
+      .community {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 72px 24px 96px;
+      }
+      .community .pxh {
+        margin: 0;
+        line-height: 0;
+      }
+      .community .pxh svg {
+        display: block;
+        width: calc(var(--w) * 6px);
+        height: 30px;
+        color: var(--ink);
+      }
+      @media (min-width: 760px) {
+        .community .pxh svg {
+          width: calc(var(--w) * 8px);
+          height: 40px;
+        }
+      }
+      .community .lead {
+        margin: 14px 0 28px;
+        color: var(--ink-2);
+      }
+      .community .cgrid {
+        --ink-3: var(--ink-2);
+        --line: rgba(31, 29, 26, 0.16);
+        --line-2: rgba(31, 29, 26, 0.3);
+      }
+      .community .all {
+        display: inline-block;
+        margin-top: 32px;
+        color: var(--ink);
+        text-underline-offset: 4px;
+      }
     </style>
   </head>
   <body>
@@ -396,7 +433,16 @@ onmessage = (e) => run(e.data.c, e.data.K);`,
           <div class="scroll-hint" aria-hidden="true"><i></i><i></i><i></i></div>
         </div>
       </section>
+      <section class="community" id="community" aria-labelledby="community-h">
+        <h2 class="pxh" id="community-h">
+          <svg data-px="Community" role="img" aria-label="Community"></svg>
+        </h2>
+        <p class="lead">Circuits people built. Play one, or remix it into your own.</p>
+        <div class="cgrid"></div>
+        <a class="all" href="/community">See all of Community</a>
+      </section>
     </main>
     <script type="module" src="/src/landing/landing.ts"></script>
+    <script type="module" src="/src/landing/community-strip.ts"></script>
   </body>
 </html>

@@ -67,7 +67,11 @@ export async function push(id: string): Promise<void> {
     else remote = null;
   }
   if (!remote) {
-    const { data, error } = await sb.from('circuits').insert(fields).select('id, link_code, updated_at').single();
+    const { data, error } = await sb
+      .from('circuits')
+      .insert({ ...fields, remix_of: info.remixOf ?? null, is_remix: !!info.remixOf })
+      .select('id, link_code, updated_at')
+      .single();
     if (error) throw new Error(error.message);
     remote = { id: data.id as string, code: data.link_code as string, owner: me.uid };
     stamp = data.updated_at as string;
@@ -101,7 +105,9 @@ async function pull(uid: string): Promise<void> {
   const sb = await need();
   const { data, error } = await sb
     .from('circuits')
-    .select('id, link_code, title, description, tags, parts, picture_path, visibility, created_at, updated_at')
+    .select(
+      'id, link_code, title, description, tags, parts, picture_path, visibility, remix_of, is_remix, created_at, updated_at',
+    )
     .eq('owner', uid);
   if (error) throw new Error(error.message);
   const rows = data ?? [];
@@ -130,6 +136,7 @@ async function pull(uid: string): Promise<void> {
         visibility: fromOnline(r.visibility as string),
         remote: { id: r.id as string, code: r.link_code as string, owner: uid },
         picturePath: (r.picture_path as string | null) ?? null,
+        remixOf: (r.remix_of as string | null) ?? null,
         parts: (r.parts as Record<string, number>) ?? {},
         synced: r.updated_at as string,
         owner: uid,

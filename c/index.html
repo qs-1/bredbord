@@ -17,23 +17,40 @@
     />
   </head>
   <body>
-    <header class="top">
+    <header class="top" id="top">
       <a class="home" href="/" aria-label="Bredbord home page"
         ><svg class="logo" id="logo" role="img" aria-label="Bredbord"></svg
       ></a>
       <span class="grow"></span>
-      <a class="btn" href="/app/">Open the simulator</a>
+      <div class="mw" id="more-w" hidden>
+        <button
+          class="ib"
+          data-menu="more"
+          data-tip="More"
+          aria-label="More"
+          aria-haspopup="menu"
+          aria-expanded="false"
+        >
+          <span class="ic" data-ic="more"></span>
+        </button>
+        <div class="menu right" id="menu-more" role="menu"></div>
+      </div>
+      <a class="btn sim after-acct" href="/app/">Open the simulator</a>
     </header>
     <main class="page" id="page" aria-busy="true">
       <article class="shared" id="shared">
         <div class="pic" id="pic"></div>
         <h1 id="title"><span class="ph w60"></span></h1>
         <p class="maker" id="maker"><span class="ph w30"></span></p>
-        <p class="desc" id="desc"></p>
         <div class="acts" id="acts" hidden>
-          <a class="primary" id="open" href="/app/">Open on the desk</a>
-          <span class="note">Opens as a copy. Your own circuit is kept.</span>
+          <a class="primary" id="play" href="/app/"><span class="ic" data-ic="play"></span>Play</a>
+          <a class="btn" id="remix" href="/app/"><span class="ic" data-ic="remix"></span>Remix</a>
+          <button class="btn like" id="like" type="button" aria-pressed="false"></button>
+          <button class="ib line" id="copy" type="button" data-tip="Copy link" aria-label="Copy link">
+            <span class="ic" data-ic="link"></span>
+          </button>
         </div>
+        <p class="desc" id="desc"></p>
         <section class="parts" id="parts-box" hidden>
           <h2>Parts</h2>
           <ul id="parts"></ul>
@@ -42,7 +59,7 @@
       <section class="gone" id="gone" hidden>
         <h1 id="gone-t"></h1>
         <p id="gone-p"></p>
-        <a class="btn" href="/app/">Open the simulator</a>
+        <a class="btn" href="/community">See Community</a>
       </section>
     </main>
     <script type="module" src="/src/shared/shared.ts"></script>

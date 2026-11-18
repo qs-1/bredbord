@@ -1,0 +1,139 @@
+/* Circuit cards in a grid (cards.ts), on the website's pages and the landing page. The colours are set
+   here too, since the landing page has its own. */
+.cgrid {
+  --ink: #1f1d1a;
+  --ink-3: #7b756b;
+  --line: rgba(31, 29, 26, 0.1);
+  --line-2: rgba(31, 29, 26, 0.2);
+  --raised: #f0eee9;
+  --desk: #e9e7e1;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+.cgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px 16px;
+}
+.ccard {
+  display: block;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+  animation: rise 0.22s var(--ease) both;
+}
+.cpic {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--desk);
+  border: 1px solid var(--line);
+  transition: border-color 0.12s var(--ease);
+}
+.ccard:hover .cpic {
+  border-color: var(--line-2);
+}
+.cpic img,
+.cpic svg.part {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.cpic img {
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.25s var(--ease);
+}
+.cpic img.in {
+  opacity: 1;
+}
+.cpic svg.part {
+  padding: 18% 22%;
+}
+.ccard h3 {
+  margin: 8px 0 0;
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cmeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.cby {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.clikes {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.ccard.cph {
+  animation: none;
+  pointer-events: none;
+}
+
+.cempty {
+  padding: 48px 0;
+  text-align: center;
+  color: var(--ink-2);
+}
+.more-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 28px;
+}
+
+.cgrid .ic {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+}
+.cgrid .ic svg {
+  width: 14px;
+  height: 14px;
+}
+.cgrid .ph {
+  display: inline-block;
+  height: 0.9em;
+  vertical-align: -0.05em;
+  border-radius: 3px;
+  background: var(--raised);
+}
+.cgrid .w60 {
+  width: 60%;
+}
+.cgrid .w30 {
+  width: 30%;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ccard {
+    animation: none;
+  }
+}
+
+/* Changing a filter: what's there dims until the new cards arrive. */
+.cgrid {
+  transition: opacity 0.18s var(--ease);
+}
+.cgrid.busy {
+  opacity: 0.45;
+  pointer-events: none;
+}

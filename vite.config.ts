@@ -21,10 +21,15 @@ function redirect(req: IncomingMessage, res: ServerResponse, next: () => void): 
     req.url = `/c/index.html${query ?? ''}`;
     return next();
   }
-  if (path === '/privacy') {
-    req.url = `/privacy/index.html${query ?? ''}`;
+  if (/^\/u\/[^/]+\/?$/.test(path)) {
+    req.url = `/u/index.html${query ?? ''}`;
     return next();
   }
+  for (const page of ['/privacy', '/community', '/account'])
+    if (path === page || path === `${page}/`) {
+      req.url = `${page}/index.html${query ?? ''}`;
+      return next();
+    }
   if (path !== '/app') return next();
   res.statusCode = 308;
   res.setHeader('Location', `/app/${query ?? ''}`);
@@ -40,7 +45,15 @@ export default defineConfig({
   // The landing page at /, the workbench at /app/, a shared link's page at /c/<code>, and /privacy.
   build: {
     rollupOptions: {
-      input: { main: 'index.html', app: 'app/index.html', shared: 'c/index.html', privacy: 'privacy/index.html' },
+      input: {
+        main: 'index.html',
+        app: 'app/index.html',
+        shared: 'c/index.html',
+        privacy: 'privacy/index.html',
+        community: 'community/index.html',
+        person: 'u/index.html',
+        account: 'account/index.html',
+      },
     },
   },
 });

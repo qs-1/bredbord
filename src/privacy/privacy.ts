@@ -1,6 +1,4 @@
-// The privacy page: plain text in the shared page's look; only the logo is drawn.
-import '../shared/shared.css';
-import { logoSVG, snapPixels } from '../ui/px';
+// The privacy page: plain text in the website's look, with the site's top bar.
+import { startSite } from '../site/site';
 
-snapPixels();
-logoSVG(document.getElementById('logo') as unknown as SVGSVGElement);
+startSite();

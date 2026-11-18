@@ -23,6 +23,8 @@ export interface CircuitInfo {
   remote: { id: string; code: string; owner: string } | null;
   /** Its picture in the account, if it has one (taken by the phone app). */
   picturePath: string | null;
+  /** Remixed from someone's shared circuit: its id in the account, so the maker is credited. */
+  remixOf?: string | null;
   parts: Record<string, number>;
   created: number;
   changed: number;
