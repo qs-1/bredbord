@@ -164,16 +164,16 @@ h1 {
   font-size: 13px;
 }
 
-.parts {
+.plist {
   margin-top: 28px;
 }
-.parts h2 {
+.plist h2 {
   margin: 0 0 8px;
   font-size: 12px;
   font-weight: 500;
   color: var(--ink-3);
 }
-.parts ul {
+.plist ul {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 4px 12px;
@@ -181,13 +181,13 @@ h1 {
   padding: 0;
   list-style: none;
 }
-.parts li {
+.plist li {
   display: flex;
   align-items: center;
   gap: 10px;
   min-height: 40px;
 }
-.parts svg {
+.plist svg {
   flex: none;
   width: 48px;
   height: 36px;
@@ -195,7 +195,7 @@ h1 {
   background: var(--card);
   border: 1px solid var(--line);
 }
-.parts .n {
+.plist .n {
   margin-left: auto;
   color: var(--ink-3);
 }
@@ -216,10 +216,10 @@ h1 {
     grid-column: 1;
     grid-row: 1 / span 5;
   }
-  .shared > :not(.pic, .parts) {
+  .shared > :not(.pic, .plist) {
     grid-column: 2;
   }
-  .shared > .parts {
+  .shared > .plist {
     grid-column: 1 / -1;
   }
   .shared > h1 {

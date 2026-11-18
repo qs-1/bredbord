@@ -2853,8 +2853,10 @@ select[data-dd] {
   display: block;
   margin: 0;
 }
+/* Held at the button's height: Google's frame comes in taller for a moment and the card jumped. */
 .acct-g {
-  min-height: 44px;
+  height: 44px;
+  overflow: hidden;
   margin: 4px 0 12px;
   color: var(--ink-3);
 }

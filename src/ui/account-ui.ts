@@ -17,6 +17,7 @@ import {
   type Account,
 } from '../community/account';
 import { partPictureBody } from './part-picture';
+import { icon } from './px';
 
 export const pic = (id: string): string => `<svg viewBox="0 0 64 48" aria-hidden="true">${partPictureBody(id)}</svg>`;
 
@@ -55,16 +56,10 @@ export class AccountUI {
       // Signed in with a name, the button opens its menu (menus.ts, through data-menu) instead.
       if (!this.button.dataset.menu) this.open();
     });
-    this.profileLink = h('a', { className: 'mi' }, 'Profile');
+    this.profileLink = h('a', { className: 'mi' }, icon('person', true), 'Profile');
     if (newTab) Object.assign(this.profileLink, { target: '_blank', rel: 'noopener' });
-    const out = h('button', { className: 'mi' }, 'Sign out');
-    out.addEventListener(
-      'click',
-      () =>
-        void signOut()
-          .then(() => this.toast('Signed out'))
-          .catch(() => this.toast('Couldn’t sign out. Try again')),
-    );
+    const out = h('button', { className: 'mi' }, icon('signout', true), 'Sign out');
+    out.addEventListener('click', () => this.askSignOut());
     for (const item of [this.profileLink, out]) item.setAttribute('role', 'menuitem');
     const menu = h('div', { className: 'menu right acct-menu', id: 'menu-acct' }, this.profileLink, out);
     menu.setAttribute('role', 'menu');
@@ -138,6 +133,34 @@ export class AccountUI {
     this.render();
     this.modal.classList.add('open');
     queueMicrotask(() => this.dlg.querySelector<HTMLElement>('input, .primary, button')?.focus());
+  }
+
+  /** "Sign out?" in the same dialog, so it isn't one tap away by mistake. */
+  askSignOut(): void {
+    this.lastFocus = document.activeElement as HTMLElement | null;
+    const btn = (label: string, cls: string, fn: () => void): HTMLButtonElement => {
+      const b = h('button', { className: cls }, label);
+      b.addEventListener('click', fn);
+      return b;
+    };
+    this.dlg.replaceChildren(
+      h('h3', { id: 'acct-t' }, 'Sign out?'),
+      h('p', {}, 'Your circuits stay in your account. Sign in again to get them back here.'),
+      h(
+        'div',
+        { className: 'dlg-b' },
+        h('span', { className: 'grow' }),
+        btn('Cancel', 'btn', () => this.close()),
+        btn('Sign out', 'primary', () => {
+          this.close();
+          void signOut()
+            .then(() => this.toast('Signed out'))
+            .catch(() => this.toast('Couldn’t sign out. Try again'));
+        }),
+      ),
+    );
+    this.modal.classList.add('open');
+    queueMicrotask(() => this.dlg.querySelector<HTMLElement>('.primary')?.focus());
   }
 
   private close(): void {

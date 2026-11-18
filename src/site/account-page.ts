@@ -12,7 +12,6 @@ import {
   nameProblem,
   onAccountChange,
   setPicture,
-  signOut,
   type Account,
 } from '../community/account';
 
@@ -119,7 +118,7 @@ function render(a: Account): void {
     row(
       'Sign out',
       null,
-      button('Sign out', 'btn', () => void signOut()),
+      button('Sign out', 'btn', () => account.askSignOut()),
     ),
     row('Delete account', null, button('Delete', 'btn bad', confirmDelete), true),
   );

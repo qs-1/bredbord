@@ -22,19 +22,6 @@
         ><svg class="logo" id="logo" role="img" aria-label="Bredbord"></svg
       ></a>
       <span class="grow"></span>
-      <div class="mw" id="more-w" hidden>
-        <button
-          class="ib"
-          data-menu="more"
-          data-tip="More"
-          aria-label="More"
-          aria-haspopup="menu"
-          aria-expanded="false"
-        >
-          <span class="ic" data-ic="more"></span>
-        </button>
-        <div class="menu right" id="menu-more" role="menu"></div>
-      </div>
       <a class="btn sim after-acct" href="/app/">Open the simulator</a>
     </header>
     <main class="page" id="page" aria-busy="true">
@@ -49,9 +36,22 @@
           <button class="ib line" id="copy" type="button" data-tip="Copy link" aria-label="Copy link">
             <span class="ic" data-ic="link"></span>
           </button>
+          <div class="mw" id="more-w" hidden>
+            <button
+              class="ib line"
+              data-menu="more"
+              data-tip="More"
+              aria-label="More"
+              aria-haspopup="menu"
+              aria-expanded="false"
+            >
+              <span class="ic" data-ic="more"></span>
+            </button>
+            <div class="menu" id="menu-more" role="menu"></div>
+          </div>
         </div>
         <p class="desc" id="desc"></p>
-        <section class="parts" id="parts-box" hidden>
+        <section class="plist" id="parts-box" hidden>
           <h2>Parts</h2>
           <ul id="parts"></ul>
         </section>
