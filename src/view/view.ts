@@ -231,6 +231,21 @@ export class View {
     return this.canvas;
   }
 
+  /** A small JPEG of the middle of the view (480 by 360), as a circuit's picture. */
+  picture(): string {
+    const from = this.snapshot();
+    const w = 480;
+    const h = 360;
+    const out = document.createElement('canvas');
+    out.width = w;
+    out.height = h;
+    const scale = Math.max(w / from.width, h / from.height);
+    const sw = w / scale;
+    const sh = h / scale;
+    out.getContext('2d')!.drawImage(from, (from.width - sw) / 2, (from.height - sh) / 2, sw, sh, 0, 0, w, h);
+    return out.toDataURL('image/jpeg', 0.8);
+  }
+
   /** Ask for a redraw on the next frame. */
   invalidate(): void {
     this.dirty = true;

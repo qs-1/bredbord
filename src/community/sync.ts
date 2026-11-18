@@ -7,7 +7,8 @@
 // Signing in: circuits made while signed out join the account. Signing out: they stay in this
 // browser, out of sight, until that account signs in again.
 //
-// Pictures: the site doesn't take them yet; a picture the phone took is kept and shown.
+// Pictures: a shared circuit open on the desk gets the desk's view as its picture when it's saved
+// (once per change); one the phone took is kept until then.
 
 import { readDoc } from '../engine/document';
 import {
@@ -36,6 +37,18 @@ const fromOnline = (v: string): Visibility => (v === 'link' || v === 'public' ? 
 function signedIn(): { uid: string } | null {
   const { session, profile } = getAccount();
   return session && profile ? { uid: session.user.id } : null;
+}
+
+let takePicture: ((id: string) => string | null) | null = null;
+/** The desk says how to take a picture of a circuit: a JPEG data URL, or null when it isn't the one open. */
+export function picturesFrom(fn: (id: string) => string | null): void {
+  takePicture = fn;
+}
+/** Which change of each circuit the picture in the account shows. */
+const pictured = new Map<string, number>();
+
+async function jpegBlob(dataUrl: string): Promise<Blob> {
+  return (await fetch(dataUrl)).blob();
 }
 
 /** Saves one circuit to the account. Throws with the database's reason (a limit, say) when it can't. */
@@ -75,6 +88,25 @@ export async function push(id: string): Promise<void> {
     if (error) throw new Error(error.message);
     remote = { id: data.id as string, code: data.link_code as string, owner: me.uid };
     stamp = data.updated_at as string;
+  }
+  if (info.visibility !== 'me' && pictured.get(id) !== rev) {
+    const jpeg = takePicture?.(id);
+    if (jpeg) {
+      const path = `${me.uid}/${remote.id}.jpg`;
+      const up = await sb.storage
+        .from('pictures')
+        .upload(path, await jpegBlob(jpeg), { contentType: 'image/jpeg', upsert: true });
+      if (!up.error) {
+        const { data } = await sb
+          .from('circuits')
+          .update({ picture_path: path })
+          .eq('id', remote.id)
+          .select('updated_at')
+          .single();
+        if (data) stamp = data.updated_at as string;
+        pictured.set(id, rev);
+      }
+    }
   }
   markSynced(id, rev, { remote, synced: stamp });
 }

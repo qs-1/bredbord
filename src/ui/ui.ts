@@ -16,7 +16,14 @@ import {
   setCurrent,
   startCircuits,
 } from '../app/circuits';
-import { followDesk, startSync, whenDeskUpdated, whenOwnerChanges, whenSyncFails } from '../community/sync';
+import {
+  followDesk,
+  picturesFrom,
+  startSync,
+  whenDeskUpdated,
+  whenOwnerChanges,
+  whenSyncFails,
+} from '../community/sync';
 import { CircuitsUI } from './circuits-ui';
 import type { SceneSync } from '../app/scene-sync';
 import type { Simulation } from '../app/simulation';
@@ -197,6 +204,7 @@ export class UI {
     });
     window.addEventListener('pagehide', () => this.keepDesk());
     followDesk(() => currentId());
+    picturesFrom((id) => (id === currentId() && !this.playing && this.hasSomething() ? this.view.picture() : null));
     whenDeskUpdated((id) => {
       if (this.playing) return;
       const doc = readCircuit(id);

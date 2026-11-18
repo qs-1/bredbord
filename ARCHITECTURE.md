@@ -164,7 +164,9 @@ link code, through `circuit_by_link`) or `public` (in Community). The phone keep
 a signed-in account in that account, private ones too, so signing in elsewhere brings them back:
 changes go up a few seconds after they're made, and the account's copies come down on sign-in and
 when the app returns to the front, newest edit winning. Pictures are JPEGs in a public storage
-bucket, each person writing only their own folder.
+bucket, each person writing only their own folder. On the website, a shared circuit open on the desk
+gets the desk's current view as its picture each time a change of it is saved; a shared circuit
+not opened on the desk since keeps whatever picture it had (or the drawing of its biggest part).
 
 ### On the website
 

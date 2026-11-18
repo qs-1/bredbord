@@ -188,20 +188,8 @@ async function start(): Promise<void> {
         sync.wires.setQuality(m.graphics === 'low' ? 'fast' : 'smooth');
         view.invalidateShadows();
         return;
-      case 'picture': {
-        // Small enough to keep one per circuit: 480 wide, the middle of the view.
-        const from = view.snapshot();
-        const w = 480;
-        const h = Math.round((w * 3) / 4);
-        const out = document.createElement('canvas');
-        out.width = w;
-        out.height = h;
-        const scale = Math.max(w / from.width, h / from.height);
-        const sw = w / scale;
-        const sh = h / scale;
-        out.getContext('2d')!.drawImage(from, (from.width - sw) / 2, (from.height - sh) / 2, sw, sh, 0, 0, w, h);
-        return post({ type: 'picture', jpeg: out.toDataURL('image/jpeg', 0.8) });
-      }
+      case 'picture':
+        return post({ type: 'picture', jpeg: view.picture() });
     }
   };
 
