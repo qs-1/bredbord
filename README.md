@@ -8,6 +8,8 @@ A free 3D breadboard simulator that runs in the browser.
 
 Ben Eater's breadboard computer [videos](https://www.youtube.com/playlist?list=PLowKtXNTBypGqImE405J2565dvjafglHU) were a huge inspiration for this. Most of the chips from his 8-bit and 6502 builds are here. There are probably some issues so beware. Full builds might still be laggy, trying to improve performance. Mobile support is in development.
 
+There's also an Android app, with the same simulator and Community: [bredbord-app](https://github.com/qs-1/bredbord-app).
+
 ## Parts
 
 - Breadboards, power rails, a power module (5 V / 3.3 V)
