@@ -241,7 +241,7 @@ export class AccountUI {
       h(
         'p',
         {},
-        'It’s shown on circuits you share. 3 to 20 lower-case letters, numbers or _. You can change it later.',
+        'It’s shown on circuits you share. 3 to 20 lower-case letters, numbers, spaces or _. You can change it later.',
       ),
       input,
       problem,

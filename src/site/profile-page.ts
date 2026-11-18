@@ -3,7 +3,7 @@
 
 import { startSite, card, h, pic, placeholders, plural } from './site';
 import { feed, profileByName } from '../community/community';
-import { HAS_SUPABASE, onAccountChange } from '../community/account';
+import { HAS_SUPABASE, nameProblem, onAccountChange } from '../community/account';
 import { pxSVG } from '../ui/px';
 
 startSite();
@@ -30,7 +30,7 @@ const count = (n: number, one: string, many = `${one}s`): HTMLElement =>
 
 async function show(): Promise<void> {
   if (!HAS_SUPABASE) return gone('People’s pages aren’t available here', 'This copy of Bredbord isn’t connected.');
-  if (!/^[a-z0-9_]{3,20}$/.test(name)) return gone('Nobody by that name', 'Check the address, then try again.');
+  if (nameProblem(name)) return gone('Nobody by that name', 'Check the address, then try again.');
   $('grid').replaceChildren(...placeholders(4));
   try {
     const who = await profileByName(name);
