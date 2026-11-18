@@ -21,6 +21,9 @@ import { icon, paintIcons } from './px';
 import { probeRef } from './refs';
 import { readSetting, writeSetting } from './settings';
 
+/** A probe's colour, as its head on the desk, for CSS and the canvas. */
+const probeCss = (i: number): string => `#${PROBE_COLORS[i % PROBE_COLORS.length].toString(16).padStart(6, '0')}`;
+
 const RULER = 22;
 const LANE = 40;
 const MIN_SPAN = 1e-6;
@@ -316,7 +319,7 @@ export class Dock {
       hole.title = where;
       // A dot in the colour of the probe's head on the desk, so a lane is easy to match to its probe.
       const dot = el('i', 'pdot');
-      dot.style.background = `#${PROBE_COLORS[i % PROBE_COLORS.length].toString(16).padStart(6, '0')}`;
+      dot.style.background = probeCss(i);
       top.append(el('b', '', probeRef(this.store.doc, p.id)), hole);
       const value = el('em');
       text.append(top, value);
@@ -453,7 +456,7 @@ export class Dock {
       g.fillStyle = 'rgba(31,29,26,.10)';
       g.fillRect(0, top + LANE, w, 1);
       const trace = this.sim.traces.get(p.id);
-      if (trace?.t.length) this.trace(trace, start, end, xOf, top + 9, top + 31, top + 20);
+      if (trace?.t.length) this.trace(trace, start, end, xOf, top + 9, top + 31, top + 20, probeCss(i));
     });
     if (!this.sim.isOn && !probes.some((p) => this.sim.traces.get(p.id)?.t.length)) {
       g.font = canvasFont('ui', 400, 12.5);
@@ -501,7 +504,7 @@ export class Dock {
     g.fillText(label, lx + 6, 14);
   }
 
-  /** A lane: high at the top, low at the bottom, in between half way, highs shaded, loose dashed through the middle. */
+  /** A lane in its probe's colour: high at the top, low at the bottom, in between half way, highs shaded, loose dashed through the middle. */
   private trace(
     trace: Trace,
     start: number,
@@ -510,6 +513,7 @@ export class Dock {
     yh: number,
     yl: number,
     ym: number,
+    color: string,
   ): void {
     const g = this.g;
     const { t, v } = trace;
@@ -518,14 +522,15 @@ export class Dock {
     while (k + 1 < t.length && t[k + 1] <= start) k++;
     if (t[k] > end) return;
     const loose: [number, number][] = [];
-    g.fillStyle = 'rgba(31,29,26,.06)';
+    // Highs shaded, and the line drawn, in the probe's colour.
+    g.fillStyle = `${color}1f`;
     for (let j = k; j < t.length && t[j] <= end; j++) {
       if (!(v[j] >= 2)) continue;
       const a = Math.max(0, xOf(t[j]));
       const b = Math.min(xOf(end), j + 1 < t.length ? xOf(t[j + 1]) : xOf(end));
       if (b > a) g.fillRect(a, yh, b - a, yl - yh);
     }
-    g.strokeStyle = '#1f1d1a';
+    g.strokeStyle = color;
     g.lineWidth = 1.5;
     g.lineJoin = 'miter';
     g.beginPath();
