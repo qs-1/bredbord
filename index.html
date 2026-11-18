@@ -138,6 +138,8 @@
       .try canvas {
         display: block;
         pointer-events: none;
+        /* A soft shadow, so it sits on the page rather than floating over it. */
+        filter: drop-shadow(0 2px 3px rgba(31, 29, 26, 0.22)) drop-shadow(0 8px 18px rgba(31, 29, 26, 0.16));
       }
       /* A little more to point at, or tap, than the pixels themselves. */
       .try::after {
@@ -215,8 +217,9 @@
       }
       /* The loader: sparks running along the logo's two rails while the board gets ready. It waits a moment
    before showing, so a quick load never flashes it, and fades out as the board fades in. */
+      /* In the board's stage, so scrolling on past the board while it loads leaves the loader behind. */
       #loader {
-        position: fixed;
+        position: absolute;
         left: 50%;
         top: 50%;
         translate: -50% -50%;
@@ -276,6 +279,30 @@
         --line: rgba(31, 29, 26, 0.16);
         --line-2: rgba(31, 29, 26, 0.3);
       }
+      .community .note {
+        margin: 0;
+        padding: 24px 0;
+        color: var(--ink-2);
+        animation: rise 0.22s var(--ease) both;
+      }
+      /* While they load: faint shapes in the page's own colour, not white cards. */
+      .community .cph .cpic,
+      .community .cph .ph {
+        background: rgba(31, 29, 26, 0.06);
+        border-color: transparent;
+        animation: breathe 1.6s ease-in-out infinite;
+      }
+      @keyframes breathe {
+        50% {
+          opacity: 0.5;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .community .cph .cpic,
+        .community .cph .ph {
+          animation: none;
+        }
+      }
       .community .all {
         display: inline-block;
         margin-top: 32px;
@@ -285,133 +312,6 @@
     </style>
   </head>
   <body>
-    <canvas id="loader" aria-hidden="true"></canvas>
-    <script>
-      (() => {
-        // Sparks running along the logo's two rails: a spark runs along the red rail one way and the blue
-        // the other, throwing off pixel sparks that fall away. Drawn in a worker where the browser allows,
-        // so it keeps running while the page is busy building the board.
-        function run(c, K) {
-          const g = c.getContext('2d');
-          const RED = '#e2362a',
-            BLUE = '#2a62d8',
-            HOT = ['#ffd84a', '#ffad1f', '#f2761a', '#d9531a'];
-          const VB = [-6, -8, 57, 26];
-          const raf = self.requestAnimationFrame
-            ? (f) => self.requestAnimationFrame(f)
-            : (f) => setTimeout(() => f(performance.now()), 16);
-          const rnd = (a, b) => a + Math.random() * (b - a);
-          const px = (x, y, color, o) => {
-            if (o <= 0) return;
-            g.globalAlpha = Math.min(1, o);
-            g.fillStyle = color;
-            g.fillRect((x - VB[0]) * K, (y - VB[1]) * K, K, K);
-          };
-          let ps = [],
-            last = performance.now();
-          const t0 = last;
-          const frame = (now) => {
-            const dt = Math.min(0.05, (now - last) / 1000),
-              T = (now - t0) / 1000;
-            last = now;
-            g.clearRect(0, 0, c.width, c.height);
-            g.globalAlpha = 1;
-            g.fillStyle = RED;
-            g.fillRect(-VB[0] * K, -VB[1] * K, 45 * K, K);
-            g.fillStyle = BLUE;
-            g.fillRect(-VB[0] * K, (10 - VB[1]) * K, 45 * K, K);
-            const P = 1.8,
-              p = (T % P) / P;
-            for (const [hx, hy, dir] of [
-              [-3 + p * 51, 0, 1],
-              [47 - p * 51, 10, -1],
-            ]) {
-              const x = Math.round(hx);
-              for (let k = 0; k < 4; k++) {
-                const tx = x - dir * k;
-                if (tx >= 0 && tx < 45) px(tx, hy, HOT[k], k ? 1 - k * 0.22 : 1);
-              }
-              if (x >= 0 && x < 45 && Math.random() < dt * 20)
-                ps.push({
-                  x,
-                  y: hy,
-                  vx: -dir * rnd(3, 9),
-                  vy: hy === 0 ? rnd(-11, -4) : rnd(-5, 1),
-                  age: 0,
-                  life: rnd(0.35, 0.6),
-                });
-            }
-            for (const q of ps) {
-              q.age += dt;
-              q.vy += 32 * dt;
-              q.x += q.vx * dt;
-              q.y += q.vy * dt;
-            }
-            ps = ps.filter((q) => q.age < q.life);
-            for (const q of ps) {
-              const k = q.age / q.life;
-              px(
-                Math.round(q.x),
-                Math.round(q.y),
-                HOT[Math.min(3, 1 + Math.floor(k * 3))],
-                k < 0.6 ? 1 : 1 - (k - 0.6) / 0.4,
-              );
-            }
-            if (!self.stopped) raf(frame);
-          };
-          raf(frame);
-        }
-
-        const c = document.getElementById('loader');
-        // Whole screen pixels per art pixel, so the pixels stay crisp at any zoom.
-        const d = devicePixelRatio || 1,
-          K = Math.max(1, Math.round(4 * d));
-        c.width = 57 * K;
-        c.height = 26 * K;
-        c.style.width = c.width / d + 'px';
-        c.style.height = c.height / d + 'px';
-        let worker = null;
-        if (c.transferControlToOffscreen && window.Worker) {
-          const off = c.transferControlToOffscreen();
-          worker = new Worker(
-            URL.createObjectURL(
-              new Blob([
-                `const run = ${run};
-onmessage = (e) => run(e.data.c, e.data.K);`,
-              ]),
-            ),
-          );
-          worker.postMessage({ c: off, K }, [off]);
-        } else run(c, K);
-        const t0 = performance.now();
-        const end = () => {
-          if (worker) worker.terminate();
-          else self.stopped = true;
-          c.remove();
-        };
-        // Called once the board is ready. A load quick enough that the loader never showed skips it; once
-        // it has shown, it stays long enough to read as meant, then fades as the board comes in.
-        window.loader = {
-          finish() {
-            const shown = performance.now() - t0 - 120;
-            if (shown <= 0) {
-              end();
-              return Promise.resolve();
-            }
-            return new Promise((done) =>
-              setTimeout(
-                () => {
-                  c.classList.add('done');
-                  setTimeout(end, 400);
-                  done();
-                },
-                Math.max(0, 650 - shown),
-              ),
-            );
-          },
-        };
-      })();
-    </script>
     <nav class="top" aria-label="Links">
       <a class="gh" href="https://github.com/qs-1/bredbord" aria-label="Bredbord on GitHub" title="Source on GitHub"
         ><svg viewBox="0 0 16 16" aria-hidden="true">
@@ -430,6 +330,133 @@ onmessage = (e) => run(e.data.c, e.data.K);`,
             aria-label="A breadboard, upside down, with Bredbord standing in pixel blocks in a panel on its back, and the words A free 3D breadboard simulator. Scrolling turns it over."
           ></canvas>
           <a class="try" href="/app/" aria-label="Try it"></a>
+          <canvas id="loader" aria-hidden="true"></canvas>
+          <script>
+            (() => {
+              // Sparks running along the logo's two rails: a spark runs along the red rail one way and the blue
+              // the other, throwing off pixel sparks that fall away. Drawn in a worker where the browser allows,
+              // so it keeps running while the page is busy building the board.
+              function run(c, K) {
+                const g = c.getContext('2d');
+                const RED = '#e2362a',
+                  BLUE = '#2a62d8',
+                  HOT = ['#ffd84a', '#ffad1f', '#f2761a', '#d9531a'];
+                const VB = [-6, -8, 57, 26];
+                const raf = self.requestAnimationFrame
+                  ? (f) => self.requestAnimationFrame(f)
+                  : (f) => setTimeout(() => f(performance.now()), 16);
+                const rnd = (a, b) => a + Math.random() * (b - a);
+                const px = (x, y, color, o) => {
+                  if (o <= 0) return;
+                  g.globalAlpha = Math.min(1, o);
+                  g.fillStyle = color;
+                  g.fillRect((x - VB[0]) * K, (y - VB[1]) * K, K, K);
+                };
+                let ps = [],
+                  last = performance.now();
+                const t0 = last;
+                const frame = (now) => {
+                  const dt = Math.min(0.05, (now - last) / 1000),
+                    T = (now - t0) / 1000;
+                  last = now;
+                  g.clearRect(0, 0, c.width, c.height);
+                  g.globalAlpha = 1;
+                  g.fillStyle = RED;
+                  g.fillRect(-VB[0] * K, -VB[1] * K, 45 * K, K);
+                  g.fillStyle = BLUE;
+                  g.fillRect(-VB[0] * K, (10 - VB[1]) * K, 45 * K, K);
+                  const P = 1.8,
+                    p = (T % P) / P;
+                  for (const [hx, hy, dir] of [
+                    [-3 + p * 51, 0, 1],
+                    [47 - p * 51, 10, -1],
+                  ]) {
+                    const x = Math.round(hx);
+                    for (let k = 0; k < 4; k++) {
+                      const tx = x - dir * k;
+                      if (tx >= 0 && tx < 45) px(tx, hy, HOT[k], k ? 1 - k * 0.22 : 1);
+                    }
+                    if (x >= 0 && x < 45 && Math.random() < dt * 20)
+                      ps.push({
+                        x,
+                        y: hy,
+                        vx: -dir * rnd(3, 9),
+                        vy: hy === 0 ? rnd(-11, -4) : rnd(-5, 1),
+                        age: 0,
+                        life: rnd(0.35, 0.6),
+                      });
+                  }
+                  for (const q of ps) {
+                    q.age += dt;
+                    q.vy += 32 * dt;
+                    q.x += q.vx * dt;
+                    q.y += q.vy * dt;
+                  }
+                  ps = ps.filter((q) => q.age < q.life);
+                  for (const q of ps) {
+                    const k = q.age / q.life;
+                    px(
+                      Math.round(q.x),
+                      Math.round(q.y),
+                      HOT[Math.min(3, 1 + Math.floor(k * 3))],
+                      k < 0.6 ? 1 : 1 - (k - 0.6) / 0.4,
+                    );
+                  }
+                  if (!self.stopped) raf(frame);
+                };
+                raf(frame);
+              }
+
+              const c = document.getElementById('loader');
+              // Whole screen pixels per art pixel, so the pixels stay crisp at any zoom.
+              const d = devicePixelRatio || 1,
+                K = Math.max(1, Math.round(4 * d));
+              c.width = 57 * K;
+              c.height = 26 * K;
+              c.style.width = c.width / d + 'px';
+              c.style.height = c.height / d + 'px';
+              let worker = null;
+              if (c.transferControlToOffscreen && window.Worker) {
+                const off = c.transferControlToOffscreen();
+                worker = new Worker(
+                  URL.createObjectURL(
+                    new Blob([
+                      `const run = ${run};
+      onmessage = (e) => run(e.data.c, e.data.K);`,
+                    ]),
+                  ),
+                );
+                worker.postMessage({ c: off, K }, [off]);
+              } else run(c, K);
+              const t0 = performance.now();
+              const end = () => {
+                if (worker) worker.terminate();
+                else self.stopped = true;
+                c.remove();
+              };
+              // Called once the board is ready. A load quick enough that the loader never showed skips it; once
+              // it has shown, it stays long enough to read as meant, then fades as the board comes in.
+              window.loader = {
+                finish() {
+                  const shown = performance.now() - t0 - 120;
+                  if (shown <= 0) {
+                    end();
+                    return Promise.resolve();
+                  }
+                  return new Promise((done) =>
+                    setTimeout(
+                      () => {
+                        c.classList.add('done');
+                        setTimeout(end, 400);
+                        done();
+                      },
+                      Math.max(0, 650 - shown),
+                    ),
+                  );
+                },
+              };
+            })();
+          </script>
           <div class="scroll-hint" aria-hidden="true"><i></i><i></i><i></i></div>
         </div>
       </section>
@@ -439,6 +466,7 @@ onmessage = (e) => run(e.data.c, e.data.K);`,
         </h2>
         <p class="lead">Circuits people built. Play one, or remix it into your own.</p>
         <div class="cgrid"></div>
+        <p class="note" hidden></p>
         <a class="all" href="/community">See all of Community</a>
       </section>
     </main>

@@ -454,10 +454,12 @@ function buildBoard(maxAniso: number): THREE.Group {
 // ---- the scene ----
 
 /**
- * The most canvas pixels per CSS pixel. Phones are mostly 3×: drawn at 2× and stretched to fit, the
- * board came out soft and its edges stepped. A computer screen is at most 2×, and draws more of them.
+ * The most canvas pixels per CSS pixel. Always drawn with multisampling: the holes are cut out of the
+ * top's texture (alpha to coverage), which only comes out smooth with it. Without it, on a sharp screen
+ * (a phone, or a computer scaled to 150 % or more) the holes' edges came out stepped and hazy. 2× with
+ * multisampling is sharper than 3× without, and costs about the same.
  */
-const MAX_DPR = matchMedia('(pointer: coarse)').matches ? 3 : 2;
+const MAX_DPR = 2;
 
 /**
  * Lets the browser handle a click or a key between the long steps of building the scene, so the links
@@ -468,9 +470,8 @@ const breathe = (): Promise<void> => new Promise((done) => setTimeout(done, 0));
 async function main(): Promise<void> {
   await Promise.all([loadFonts(), document.fonts.load('500 30px "Atkinson Hyperlegible Next"')]);
   const canvas = document.querySelector<HTMLCanvasElement>('#board')!;
-  // On a sharp screen the pixels are small enough to go without multisampling, which costs the most there.
   const dpr = Math.min(devicePixelRatio, MAX_DPR);
-  const r = new THREE.WebGLRenderer({ canvas, antialias: dpr < 1.5, alpha: true, powerPreference: 'high-performance' });
+  const r = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
   r.setPixelRatio(dpr);
   r.outputColorSpace = THREE.SRGBColorSpace;
   r.toneMapping = THREE.NeutralToneMapping;
