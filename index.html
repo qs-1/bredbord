@@ -36,7 +36,7 @@
       :root {
         --ink: #1f1d1a;
         --ink-2: #57524a;
-        --page: #b9b3a7;
+        --page: #cfcac0;
         --line: rgba(31, 29, 26, 0.18);
         --font: 'Atkinson Hyperlegible Next', system-ui, sans-serif;
         --font-label: 'Barlow Semi Condensed', sans-serif;
@@ -61,11 +61,11 @@
         top: 0;
         right: 0;
         z-index: 5;
-        padding: 18px 24px;
+        padding: 16px 20px;
         font-size: 14px;
         display: flex;
         align-items: center;
-        gap: 20px;
+        gap: 8px;
       }
       .top .gh {
         display: flex;
@@ -76,18 +76,31 @@
         height: 18px;
         fill: currentColor;
       }
+      /* Light buttons with a hairline and a soft shadow, so they read over the board as it turns under them. */
       .top a {
-        color: var(--ink-2);
-        text-decoration: underline;
-        text-underline-offset: 4px;
-        text-decoration-color: var(--line);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 34px;
+        padding: 0 12px;
+        border: 1px solid rgba(31, 29, 26, 0.14);
+        border-radius: 6px;
+        background: rgba(251, 250, 247, 0.92);
+        box-shadow: 0 1px 2px rgba(31, 29, 26, 0.08);
+        color: var(--ink);
+        text-decoration: none;
         transition:
-          color 0.15s var(--ease),
-          text-decoration-color 0.15s var(--ease);
+          background-color 0.15s var(--ease),
+          border-color 0.15s var(--ease);
+      }
+      .top a.gh {
+        width: 34px;
+        padding: 0;
+        justify-content: center;
       }
       .top a:hover {
-        color: var(--ink);
-        text-decoration-color: var(--ink);
+        background: #fff;
+        border-color: rgba(31, 29, 26, 0.24);
       }
       .flip {
         height: 260vh;
