@@ -1306,8 +1306,10 @@ export class Simulator {
       else if (d === 1) net.setSlot(s, 1 / fam.roh, gnd + fam.voh(vcc));
       else if (d === 0) net.setSlot(s, 1 / fam.rol, gnd + fam.vol);
       else if (chip.pullups[pin]) net.setSlot(s, 1 / 20000, gnd + vcc);
-      else if (chip.isInput[pin] && fam.input) net.setSlot(s, fam.input.g, gnd + fam.input.volts);
-      else if (bias) net.setSlot(s, bias.g, gnd + bias.volts(vcc));
+      else if (chip.isInput[pin] && fam.input) {
+        const knee = gnd + fam.input.volts;
+        net.setSlot(s, chip.volts(pin) > knee ? fam.input.leak : fam.input.g, knee);
+      } else if (bias) net.setSlot(s, bias.g, gnd + bias.volts(vcc));
       else net.setSlot(s, 0, 0);
     }
   }

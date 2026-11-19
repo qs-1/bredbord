@@ -16,14 +16,24 @@ export interface FamilyTraits {
   roh: number;
   vol: number;
   rol: number;
-  /** Bipolar TTL inputs float up to about 1.6 V and source ~0.4 mA when pulled low. */
-  input: { volts: number; g: number } | null;
+  /**
+   * Bipolar TTL inputs: source ~0.4 mA when pulled low (g = 1/4kΩ to 1.6 V).
+   * Above 1.6 V the junction is reverse-biased, so only a tiny leak current flows.
+   */
+  input: { volts: number; g: number; leak: number } | null;
   /** Input switching point, volts above the chip's ground. */
   threshold: number;
 }
 
 export const FAMILIES: Readonly<Record<Family, FamilyTraits>> = {
-  LS: { voh: (vcc) => vcc - 1.4, roh: 110, vol: 0.12, rol: 25, input: { volts: 1.6, g: 1 / 4000 }, threshold: 1.3 },
+  LS: {
+    voh: (vcc) => vcc - 1.4,
+    roh: 110,
+    vol: 0.12,
+    rol: 25,
+    input: { volts: 1.6, g: 1 / 4000, leak: 1 / 200000 },
+    threshold: 1.3,
+  },
   HC: { voh: (vcc) => vcc, roh: 45, vol: 0, rol: 30, input: null, threshold: 2.5 },
   CMOS: { voh: (vcc) => vcc, roh: 100, vol: 0, rol: 50, input: null, threshold: 1.4 },
   NE555: { voh: (vcc) => vcc - 1.7, roh: 12, vol: 0.1, rol: 8, input: null, threshold: 2.5 },
