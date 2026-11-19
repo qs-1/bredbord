@@ -109,7 +109,8 @@ describe('account names', async () => {
     expect(cleanName('  Test   Maker ')).toBe('test maker');
     expect(nameProblem('test maker')).toBeNull();
     expect(nameProblem('test_maker')).toBeNull();
-    for (const bad of ['ab', 'a'.repeat(21), 'no-dash', 'Caps', ' lead', 'two  spaces']) expect(nameProblem(bad)).not.toBeNull();
+    for (const bad of ['ab', 'a'.repeat(21), 'no-dash', 'Caps', ' lead', 'two  spaces'])
+      expect(nameProblem(bad)).not.toBeNull();
   });
 
   it('only offers pictures the database allows, each with a drawing', () => {
