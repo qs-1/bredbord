@@ -31,7 +31,11 @@ export type ToDesk =
   | { type: 'color'; color: WireColor }
   | { type: 'rotate' | 'duplicate' | 'delete' | 'deselect' | 'cancel' | 'undo' | 'redo' | 'power' | 'fit' }
   | { type: 'top'; on: boolean }
-  | { type: 'picture' }
+  /**
+   * A picture of the circuit: `top` (the default) from straight above with the boards framed, whatever
+   * the camera is looking at; `current` the view as it is now (a picture the person framed themselves).
+   */
+  | { type: 'picture'; view?: 'top' | 'current' }
   /** The app's settings that the desk carries out. */
   | { type: 'settings'; graphics: 'high' | 'low'; magnifier: boolean; pinNames: boolean };
 
@@ -55,7 +59,8 @@ export type FromDesk =
   | { type: 'loaded'; doc: CircuitDoc }
   /** The circuit just changed by the user's hand; the app may give a light vibration. */
   | { type: 'bump' }
-  | { type: 'picture'; jpeg: string }
+  /** The picture asked for, with which kind it is. */
+  | { type: 'picture'; jpeg: string; view: 'top' | 'current' }
   | { type: 'toast'; text: string };
 
 const host = (window as unknown as { ReactNativeWebView?: { postMessage(data: string): void } }).ReactNativeWebView;
@@ -188,8 +193,11 @@ async function start(): Promise<void> {
         sync.wires.setQuality(m.graphics === 'low' ? 'fast' : 'smooth');
         view.invalidateShadows();
         return;
-      case 'picture':
-        return post({ type: 'picture', jpeg: view.picture() });
+      case 'picture': {
+        const from = m.view ?? 'top';
+        const jpeg = from === 'current' ? view.picture() : view.pictureAbove(sync.boardsBox());
+        return post({ type: 'picture', jpeg, view: from });
+      }
     }
   };
 

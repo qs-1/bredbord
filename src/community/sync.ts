@@ -30,6 +30,8 @@ import { getAccount, need, onAccountChange, type Account } from './account';
 
 type Online = 'private' | 'link' | 'public';
 const sameTags = (a: string[], b: string[]): boolean => a.length === b.length && a.every((t, i) => t === b[i]);
+const missingPictureCustomColumn = (error: { code?: string; message?: string } | null): boolean =>
+  !!error && ['42703', 'PGRST204'].includes(error.code ?? '') && /picture_custom/i.test(error.message ?? '');
 export const toOnline = (v: Visibility): Online => (v === 'me' ? 'private' : v);
 const fromOnline = (v: string): Visibility => (v === 'link' || v === 'public' ? v : 'me');
 
@@ -97,12 +99,21 @@ export async function push(id: string): Promise<void> {
         .from('pictures')
         .upload(path, await jpegBlob(jpeg), { contentType: 'image/jpeg', upsert: true });
       if (!up.error) {
-        const { data } = await sb
+        let { data, error } = await sb
           .from('circuits')
-          .update({ picture_path: path })
+          .update({ picture_path: path, picture_custom: false })
           .eq('id', remote.id)
           .select('updated_at')
           .single();
+        if (missingPictureCustomColumn(error)) {
+          ({ data, error } = await sb
+            .from('circuits')
+            .update({ picture_path: path })
+            .eq('id', remote.id)
+            .select('updated_at')
+            .single());
+        }
+        if (error) throw new Error(error.message);
         if (data) stamp = data.updated_at as string;
         pictured.set(id, rev);
       }
