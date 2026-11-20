@@ -2,6 +2,7 @@
 // changes, runs it in real time while anything in it moves by itself (a 555 ticking, a capacitor
 // charging), and lights up LEDs and displays to match.
 
+import * as THREE from 'three';
 import type { Edge, HoleRef, Id, MeterDoc, PartDoc, ProbeDoc, WireDoc } from '../engine/circuit';
 import { PARTS, withPowerJumper, type PowerSide } from '../engine/parts';
 import type { Cpu65 } from '../engine/sim/cpu65';
@@ -14,6 +15,7 @@ import {
   NANO_LED_COLORS,
   NANO_LEDS,
   nanoLedMatrix,
+  partPieces,
   POWER_LED,
   type NanoLed,
 } from '../view/components';
@@ -144,6 +146,8 @@ export class Simulation {
   private lastReadout = 0;
   private glowKey = '';
   private saveTimer = 0;
+  /** Live world pin positions of a part being dragged, so its glow tracks the ghost. */
+  private dragGlow: { id: Id; world: THREE.Vector3[] } | null = null;
 
   constructor(
     private readonly store: Store,
@@ -337,6 +341,15 @@ export class Simulation {
   setKnob(id: Id, position: number): void {
     const value = Math.round(Math.max(0, Math.min(1000, position)));
     this.setStates((p) => (p.id === id ? value : undefined));
+  }
+
+  /**
+   * Tells the glow renderer where a dragged part's ghost currently is, so the LED glow follows
+   * the ghost in real time instead of staying at the last committed document position.
+   * Pass `null` to clear when the drag ends.
+   */
+  setDragGlow(id: Id | null, world: THREE.Vector3[] | null): void {
+    this.dragGlow = id && world ? { id, world } : null;
   }
 
   /** What a memory chip holds right now. */
@@ -737,8 +750,15 @@ export class Simulation {
     const level = (v: number): number => Math.round(v * 32) / 32;
     for (const part of this.store.doc.parts) {
       const def = PARTS[part.def];
-      const matrix = this.sync.partMatrix(part.id);
-      if (!def || !matrix || this.sync.isHidden(part.id)) continue;
+      if (!def) continue;
+      // For a part being dragged, use the ghost's live world pins so the glow follows the preview.
+      const drag = this.dragGlow?.id === part.id ? this.dragGlow : null;
+      const matrix = drag
+        ? (partPieces(def, drag.world)[0]?.matrix ?? this.sync.partMatrix(part.id))
+        : this.sync.partMatrix(part.id);
+      if (!matrix) continue;
+      // Skip the hidden (dragged) part only when no live drag override is available.
+      if (!drag && this.sync.isHidden(part.id)) continue;
       if (def.kind === 'led') {
         const lit = level(this.result.leds.get(part.id)?.brightness ?? 0);
         if (lit <= 0) continue;
@@ -830,7 +850,9 @@ export class Simulation {
       }
     }
     // Placements count too: a lit LED that moved has to move its glow.
+    // A dragged part's ghost position also changes the glow, even though layoutVersion stays the same.
     key += this.sync.layoutVersion;
+    if (this.dragGlow) key += `drag:${this.dragGlow.world.map((v) => `${v.x.toFixed(1)},${v.z.toFixed(1)}`).join(';')}`;
     if (key === this.glowKey) return;
     this.glowKey = key;
     this.glow.update(items);

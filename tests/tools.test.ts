@@ -296,6 +296,7 @@ function createToolsFixture(doc: CircuitDoc = createDoc()) {
     onChange: () => {},
     toggleSwitch: () => {},
     setPowerJumper: () => {},
+    setDragGlow: () => {},
   };
   const canvas: any = mockElement();
 
