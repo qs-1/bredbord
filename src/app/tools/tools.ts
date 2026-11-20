@@ -256,6 +256,8 @@ const HOLE_MAGNET = 0.9;
 const RUN_REACH = 2;
 /** How close to a leg's handle (mm, off the pointer's ray) grabs it: just under half a hole apart, so side-by-side legs each get their own. */
 const LEG_REACH = 1.2;
+/** How close (mm) to a chip's pin the pointer must be on the part to count as pointing at that pin. */
+const PIN_REACH = 1.2;
 /** How far (mm) from the pointer a hole is picked when placing: enough to reach across the centre channel. */
 const PLACE_REACH = 4.5;
 const SCOPE_KNOB_SET: ReadonlySet<string> = new Set(['time', 'level', 'volts1', 'volts2']);
@@ -387,6 +389,8 @@ export class Tools {
   polarityOnHover = true;
   /** Pins pointed at on the card's pin list, whose legs glow on the desk. */
   private cardPins: { id: Id; pins: readonly number[] } | null = null;
+  /** The pin of a chip the pointer is on, on the desk: lit the same way, with the hole's card and its row on the chip's card. */
+  private deskPin: { id: Id; pin: number } | null = null;
   /** What's under way that a click finishes or Esc cancels, in a few words for the hint bar; '' when nothing is. */
   task = '';
   toast: (message: string) => void = () => {};
@@ -2428,11 +2432,50 @@ export class Tools {
 
   /** The hole under the pointer, for its hover card: on a hole, not on a part, with nothing being moved or placed. */
   get pointedHole(): HoleHit | null {
+    if (!this.pointerInside || this.gesture || this.dragIn || this.pasting || this.mode === 'place') return null;
+    // On a chip's pin, the hole the pin is in: the card says what else is joined to it.
+    const pin = this.deskPin && this.pinHit(this.deskPin);
+    if (pin) return pin;
     const h = this.hover;
-    if (!h || !this.pointerInside || this.gesture || this.dragIn || this.pasting || this.mode === 'place') return null;
+    if (!h) return null;
     const item = this.hoverItem;
     if (item && item.kind !== 'board' && !h.terminal) return null;
     return h;
+  }
+
+  /** The chip pin the pointer is on, if any (see `deskPin`). */
+  get pointedPin(): { id: Id; pin: number } | null {
+    return this.deskPin;
+  }
+
+  /** The hole that pin `p` of a part is in, as a hover would give it. */
+  private pinHit(p: { id: Id; pin: number }): HoleHit | null {
+    const ref = this.store.doc.parts.find((x) => x.id === p.id)?.pins[p.pin];
+    const board = ref && this.store.doc.boards.find((b) => b.id === ref.board);
+    const world = ref && this.sync.holeWorld(ref);
+    const hole = board && ref && boardSpec(board.type).holes.find((x) => x.name === ref.hole);
+    return ref && board && world && hole ? { ref, hole, board, world } : null;
+  }
+
+  /** In the select tool, the pin of a DIP chip that the pointer is on: nearest to where it meets the part, within reach. */
+  private pinUnderPointer(): { id: Id; pin: number } | null {
+    const item = this.hoverItem;
+    if (item?.kind !== 'part' || !item.point || this.drag || this.groupMove) return null;
+    const part = this.store.doc.parts.find((p) => p.id === item.id);
+    const def = part && PARTS[part.def];
+    if (!part || !def || !dipFootprint(def)) return null;
+    let best = -1;
+    let nearest = PIN_REACH;
+    for (let i = 0; i < part.pins.length; i++) {
+      const at = this.sync.holeWorld(part.pins[i]);
+      if (!at) continue;
+      const d = Math.hypot(at.x - item.point.x, at.z - item.point.z);
+      if (d < nearest) {
+        nearest = d;
+        best = i;
+      }
+    }
+    return best < 0 ? null : { id: part.id, pin: best };
   }
 
   /**
@@ -3061,6 +3104,7 @@ export class Tools {
       : null;
     this.hoverItem =
       ray && this.mode === 'select' && !drag && !this.dragIn && !this.pasting ? this.pickItem(ray) : null;
+    this.deskPin = this.pinUnderPointer();
     if (this.dragIn) this.dragIn.at = ray ? this.dropSpot(this.dragIn) : null;
     if (drag) drag.target = this.dragTarget(drag);
     // Keep the LED glow on a dragged part tracking its ghost's live position.
@@ -3378,7 +3422,8 @@ export class Tools {
 
   /** Where the legs pointed at on the card go into the board. */
   private cardPinPoints(): THREE.Vector3[] {
-    const at = this.cardPins;
+    // Pointed at on the card, or on the desk.
+    const at = this.cardPins ?? (this.deskPin ? { id: this.deskPin.id, pins: [this.deskPin.pin] } : null);
     const part = at && this.store.doc.parts.find((p) => p.id === at.id);
     if (!part || this.drag) return [];
     return at.pins.flatMap((i) => {
