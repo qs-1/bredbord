@@ -1630,6 +1630,11 @@ export class Tools {
       if (this.hover) capture({ kind: 'span', from: this.hover, active: false });
       return;
     }
+    if (this.mode === 'place' && !bendable(this.placing) && e.pointerType !== 'touch') {
+      // A drag moves the view while holding a part; a click still places it.
+      const at = { x: e.clientX, y: e.clientY };
+      return capture({ kind: 'pan', ...at, last: at, active: false });
+    }
     if (this.mode === 'wire' && e.pointerType !== 'touch') {
       // A drag moves the view, as on the empty desk; a click still puts down the wire's ends.
       const at = { x: e.clientX, y: e.clientY };
@@ -3007,6 +3012,9 @@ export class Tools {
       ray && this.mode === 'select' && !drag && !this.dragIn && !this.pasting ? this.pickItem(ray) : null;
     if (this.dragIn) this.dragIn.at = ray ? this.dropSpot(this.dragIn) : null;
     if (drag) drag.target = this.dragTarget(drag);
+    // Keep the LED glow on a dragged part tracking its ghost's live position.
+    const dragPart = drag?.item.kind === 'part' ? drag : null;
+    this.sim.setDragGlow(dragPart?.item.id ?? null, dragPart?.target?.world ?? null);
     this.view.setWheelZooms(!this.overKnob());
     this.updateMarkers();
     this.updatePreview();
