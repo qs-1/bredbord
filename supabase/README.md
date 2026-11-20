@@ -12,7 +12,8 @@ function, inside Supabase. It is never put in the app, the website, this repo or
 1. **Tables and rules.** In the Supabase dashboard, open SQL Editor, and run each file in
    `migrations/` in name order, pasting all of it: `20261117000000_community.sql`, then
    `20261118000000_picture_replace.sql` (lets a circuit's picture be replaced), then
-   `20261118100000_private_circuits.sql` (every circuit kept in its owner's account, private ones too).
+   `20261118100000_private_circuits.sql` (every circuit kept in its owner's account, private ones too), then
+   `20261120100000_custom_circuit_pictures.sql` (keeps custom preview behavior in step across devices).
 2. **Check the rules from outside.** From the main project:
    ```bash
    node scripts/check-supabase.mjs
