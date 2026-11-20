@@ -130,10 +130,10 @@ export class CircuitsUI {
         'p',
         { className: 'mine-note' },
         signed
-          ? 'Kept in your account, so they’re on this computer and your phone.'
+          ? 'Saved to your account.'
           : canSignIn
-            ? 'Kept in this browser. Sign in to keep them in your account and on your phone.'
-            : 'Kept in this browser.',
+            ? 'Saved in this browser. Sign in to save them to your account.'
+            : 'Saved in this browser.',
       ),
       rows.length
         ? h('ul', { className: 'mine-list' }, ...rows)

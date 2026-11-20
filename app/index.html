@@ -104,16 +104,6 @@
             <span class="ic" data-ic="menu"></span>
           </button>
           <div class="menu right" id="menu-main" role="menu">
-            <button class="mi" role="menuitem" data-file="mine">
-              <span class="ic sm" data-ic="list"></span>My circuits
-            </button>
-            <button class="mi" role="menuitem" data-file="share">
-              <span class="ic sm" data-ic="share"></span>Share
-            </button>
-            <a class="mi" role="menuitem" href="/community" target="_blank" rel="noopener">
-              <span class="ic sm" data-ic="heart"></span>Community
-            </a>
-            <div class="msep"></div>
             <button class="mi" role="menuitem" data-file="new">
               <span class="ic sm" data-ic="plus"></span>New circuit
             </button>
@@ -126,12 +116,16 @@
             <button class="mi" role="menuitem" data-file="save">
               <span class="ic sm" data-ic="save"></span>Save to file<kbd>Ctrl S</kbd>
             </button>
-            <div class="sub">
-              <button class="mi" role="menuitem" aria-haspopup="menu">
-                <span class="ic sm" data-ic="book"></span>Examples<span class="ic sm end" data-ic="chevl"></span>
-              </button>
-              <div class="menu" role="menu" id="menu-examples"></div>
-            </div>
+            <div class="msep"></div>
+            <button class="mi" role="menuitem" data-file="mine">
+              <span class="ic sm" data-ic="list"></span>My circuits
+            </button>
+            <button class="mi" role="menuitem" data-file="share">
+              <span class="ic sm" data-ic="share"></span>Share
+            </button>
+            <a class="mi" role="menuitem" href="/community" target="_blank" rel="noopener">
+              <span class="ic sm" data-ic="heart"></span>Community
+            </a>
             <div class="msep"></div>
             <div class="sub big">
               <button class="mi" role="menuitem" aria-haspopup="dialog">
@@ -335,6 +329,10 @@
       </nav>
 
       <main class="work" id="work">
+        <script>
+          if (document.documentElement.classList.contains('phone'))
+            document.getElementById('work').classList.add('collapsed');
+        </script>
         <div class="deskcol">
           <section class="desk" id="desk" aria-label="Desk">
             <canvas id="viewport" tabindex="-1"></canvas>

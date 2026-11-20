@@ -243,6 +243,7 @@ export class UI {
     this.keepDesk();
     const doc = readCircuit(id);
     if (!doc) return this.toast('Couldn’t open that circuit');
+    this.leavePlay();
     setCurrent(id);
     this.keptJson = JSON.stringify(doc);
     void this.swapIn(doc);
@@ -254,8 +255,9 @@ export class UI {
    */
   private placeNew(doc: CircuitDoc): Promise<void> {
     this.keepDesk();
+    const playing = !!this.playing;
     const cur = currentId();
-    if (cur && getCircuit(cur) && !this.hasSomething()) {
+    if (cur && getCircuit(cur) && !playing && !this.hasSomething()) {
       if (!saveCircuit(cur, doc)) {
         this.toast('Couldn’t keep it in this browser: its storage is full or blocked');
         return Promise.resolve();
@@ -268,6 +270,7 @@ export class UI {
       }
       setCurrent(info.id);
     }
+    this.leavePlay();
     this.keptJson = JSON.stringify(doc);
     return this.swapIn(doc);
   }
@@ -304,7 +307,7 @@ export class UI {
   }
 
   private bindMenu(): void {
-    for (const list of [$('#menu-examples'), $('#menu-ex')]) {
+    for (const list of [$('#menu-ex')]) {
       for (const example of EXAMPLES) {
         const b = el('button', 'mi', example.title);
         b.setAttribute('role', 'menuitem');
@@ -864,6 +867,18 @@ export class UI {
     const back = id ? readCircuit(id) : null;
     this.keptJson = JSON.stringify(back ?? emptyDoc());
     void this.swapIn(back ?? emptyDoc()).then(() => this.store.holdSaves(false));
+  }
+
+  /** Drops the "playing" state without restoring anything; used when another circuit is about to replace the desk. */
+  private leavePlay(): void {
+    if (!this.playing) return;
+    window.clearTimeout(this.keepTimer);
+    this.playing = null;
+    this.playBar?.classList.remove('show');
+    $('#desk').classList.remove('playing');
+    // Stops keepDesk() from saving the played circuit over the one underneath.
+    this.keptJson = JSON.stringify(this.store.doc);
+    this.store.holdSaves(false);
   }
 
   private showPlayBar(): void {
