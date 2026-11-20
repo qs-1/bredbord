@@ -313,6 +313,52 @@ function placingName(def: PartDef): string {
   return /^[A-Z][a-z]/.test(t) ? t[0].toLowerCase() + t.slice(1) : t;
 }
 
+/**
+ * Returns true when the hole-hover ring and its connected-net highlight should
+ * be shown for the current pointer state.
+ *
+ * Exported as a pure function so it can be unit-tested without the full Tools
+ * class.  Every parameter is a simple scalar extracted from the class fields:
+ *
+ *   gestureKind   – this.gesture?.kind (undefined when no gesture is active)
+ *   gesturePanActive – true when gesture.kind === 'pan' && gesture.active
+ *   spaceHeld     – this.spaceHeld
+ *   middleDown    – this.middleDown (middle mouse button is physically held)
+ *   viewFingers   – this.viewFingers (two-finger view pan in progress)
+ *   isDragging    – true when this.drag is not null (single part/wire-end/leg drag)
+ */
+export function shouldShowHoleHover({
+  gestureKind,
+  gesturePanActive,
+  spaceHeld,
+  middleDown,
+  viewFingers,
+  isDragging,
+}: {
+  gestureKind: Gesture['kind'] | undefined;
+  gesturePanActive: boolean;
+  spaceHeld: boolean;
+  middleDown: boolean;
+  viewFingers: boolean;
+  isDragging: boolean;
+}): boolean {
+  // A drag of a single part, wire end, or leg always keeps the highlight
+  // so the user can see where the drop will land.
+  if (isDragging) return true;
+  // Any gesture that moves the view or reshapes a selection suppresses it.
+  if (gesturePanActive) return false;             // left-drag pan (active)
+  if (gestureKind === 'box') return false;        // box-select drag
+  if (gestureKind === 'group') return false;      // moving a group
+  if (gestureKind === 'board-group') return false;// moving boards as a group
+  // Space bar held = temporary grab-to-pan mode.
+  if (spaceHeld) return false;
+  // Middle mouse button pans via OrbitControls (no gesture is set for it).
+  if (middleDown) return false;
+  // Two-finger touch pan/pinch/rotate.
+  if (viewFingers) return false;
+  return true;
+}
+
 export class Tools {
   mode: ToolMode = 'select';
   /** Whether boards and instruments snap into line with what's near them, and wire bends onto holes. */
@@ -416,6 +462,8 @@ export class Tools {
   private readonly ndc = new THREE.Vector2();
   private pointerInside = false;
   private spaceHeld = false;
+  /** Middle mouse button (button 1) is held: OrbitControls pans the view, so holes shouldn't glow. */
+  private middleDown = false;
   /** Shift is down: while drawing a wire, a click on a hole bends it there instead of ending it. */
   private shiftHeld = false;
   private readonly listeners = new Set<() => void>();
@@ -477,6 +525,7 @@ export class Tools {
     window.addEventListener('pointerup', () => this.releaseButton());
     window.addEventListener('blur', () => {
       this.shiftHeld = false;
+      this.middleDown = false;
       this.releaseButton();
       this.releaseRange();
       this.endPointer();
@@ -1619,6 +1668,7 @@ export class Tools {
 
   private onPointerDown(e: PointerEvent): void {
     this.down = { x: e.clientX, y: e.clientY, button: e.button };
+    if (e.button === 1) this.middleDown = true;
     if (e.button !== 0 || this.spaceHeld) return;
     const capture = (gesture: Gesture): void => {
       this.gesture = gesture;
@@ -1759,6 +1809,7 @@ export class Tools {
   private onPointerUp(e: PointerEvent): void {
     const down = this.down;
     this.down = null;
+    if (e.button === 1) this.middleDown = false;
     if (this.releaseRange() || this.releaseButton()) return;
     const g = this.gesture;
     this.gesture = null;
@@ -3100,7 +3151,19 @@ export class Tools {
     // A finger moving the view isn't pointing at anything: holes light up under it only while it aims
     // (a wire, a probe, a leg being moved), not as it pans in passing.
     const passing = this.touching && this.mode === 'select' && !drag && !this.pasting;
-    const marked = h && !placingBody && !passing ? h : null;
+    // Suppress the hover ring whenever the view is being panned (left-drag pan, middle-button, space,
+    // two-finger touch, box select, or a group move).  Keep it during a single-item drag so the user
+    // can see where the drop will land.
+    const g = this.gesture;
+    const show = shouldShowHoleHover({
+      gestureKind: g?.kind,
+      gesturePanActive: g?.kind === 'pan' && g.active,
+      spaceHeld: this.spaceHeld,
+      middleDown: this.middleDown,
+      viewFingers: this.viewFingers,
+      isDragging: !!drag,
+    });
+    const marked = h && !placingBody && !passing && show ? h : null;
     this.markers.setHover(marked ? marked.world : null, tone);
     this.markers.setStart(this.pending?.world ?? this.dragIn?.lead?.world ?? null);
     const net = marked ? this.sync.connectivity.members(marked.ref) : [];
