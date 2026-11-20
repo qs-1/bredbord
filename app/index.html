@@ -329,6 +329,10 @@
       </nav>
 
       <main class="work" id="work">
+        <script>
+          if (document.documentElement.classList.contains('phone'))
+            document.getElementById('work').classList.add('collapsed');
+        </script>
         <div class="deskcol">
           <section class="desk" id="desk" aria-label="Desk">
             <canvas id="viewport" tabindex="-1"></canvas>
