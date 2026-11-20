@@ -92,6 +92,10 @@ export class View {
   private dirty = true;
   private continuous = 0;
   private tween: Tween | null = null;
+  /** While a picture is being taken from above: the camera moves, but nothing is told. */
+  private capturing = false;
+  /** While a picture is being framed: the area to frame is the 4:3 middle of the canvas, with no panels over it. */
+  private framing = false;
   private frames = 0;
   private windowStart = performance.now();
   /** Whether the camera's moves may be drawn coarser when frames are slow (an experimental setting). */
@@ -192,6 +196,7 @@ export class View {
       this.syncProjection();
       this.lastMove = performance.now();
       this.invalidate();
+      if (this.capturing) return;
       for (const fn of this.cameraListeners) fn();
     });
     this.camera.position.set(0, 240, 170);
@@ -244,6 +249,32 @@ export class View {
     const sh = h / scale;
     out.getContext('2d')!.drawImage(from, (from.width - sw) / 2, (from.height - sh) / 2, sw, sh, 0, 0, w, h);
     return out.toDataURL('image/jpeg', 0.8);
+  }
+
+  /**
+   * The same picture, but of `box` (the boards) seen from straight above and as large as fits, whatever
+   * the camera is looking at. The camera goes back to where it was, and nothing else hears of the move.
+   */
+  pictureAbove(box: THREE.Box3): string {
+    if (box.isEmpty()) return this.picture();
+    const position = this.camera.position.clone();
+    const target = this.controls.target.clone();
+    const tween = this.tween;
+    this.tween = null;
+    this.capturing = true;
+    this.framing = true;
+    try {
+      this.fit(box, false, true);
+      return this.picture();
+    } finally {
+      this.framing = false;
+      this.camera.position.copy(position);
+      this.controls.target.copy(target);
+      this.controls.update();
+      this.capturing = false;
+      this.tween = tween;
+      this.invalidateShadows();
+    }
   }
 
   /** Ask for a redraw on the next frame. */
@@ -449,9 +480,8 @@ export class View {
    * Frames `box` in the part of the canvas no panel or dock covers, as close as it fits: each of its
    * corners, seen from where the camera will be, within FIT_FILL of the edges.
    */
-  fit(box: THREE.Box3, animate = true): void {
+  fit(box: THREE.Box3, animate = true, top = this.isTopView()): void {
     if (box.isEmpty()) return;
-    const top = this.isTopView();
     const dir = top ? TOP_DOWN : ANGLED;
     const { aspect, visible } = this.visibleArea();
     // How far off the line of sight a point may be, per mm away from the camera: up and across.
@@ -507,6 +537,8 @@ export class View {
   private visibleArea(): { aspect: number; covered: number; below: number; visible: number } {
     const w = this.canvas.clientWidth || 1;
     const h = this.canvas.clientHeight || 1;
+    // A picture keeps the 4:3 middle of the canvas (see `picture`), whatever panels the app has up.
+    if (this.framing) return { aspect: 4 / 3, covered: 0, below: 0, visible: Math.min(1, (w * 3) / 4 / h) };
     const covered = THREE.MathUtils.clamp(this.coveredRight(), 0, w / 2);
     const below = THREE.MathUtils.clamp(this.coveredBottom(), 0, h / 2);
     return { aspect: (w - covered) / (h - below), covered, below, visible: (h - below) / h };
