@@ -16,6 +16,7 @@ import type { BoardType } from './engine/breadboard';
 import { emptyDoc, WIRE_COLORS, type CircuitDoc, type WireColor } from './engine/circuit';
 import { readDoc } from './engine/document';
 import { PARTS } from './engine/parts';
+import { LED_COLORS, optionsOf, type DeskOption } from './embed-options';
 import { loadFonts } from './fonts';
 import { View } from './view/view';
 
@@ -54,6 +55,8 @@ export type FromDesk =
       canUndo: boolean;
       canRedo: boolean;
       top: boolean;
+      /** Settings of the one selected part, to choose from; empty for anything else. */
+      options: DeskOption[];
     }
   /** A circuit was opened: its document as it now stands (how the app learns an example's parts). */
   | { type: 'loaded'; doc: CircuitDoc }
@@ -104,6 +107,7 @@ async function start(): Promise<void> {
       canUndo: tools.canUndo,
       canRedo: store.canRedo,
       top: view.isTopView(),
+      options: many === 1 ? optionsOf(part) : [],
     };
     const json = JSON.stringify(message);
     if (json === last) return;
