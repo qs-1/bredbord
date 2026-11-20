@@ -54,9 +54,7 @@ describe('shouldShowHoleHover', () => {
   // ---- single-item drag ALWAYS keeps hover (drop-target feedback) ----
 
   it('keeps hover while dragging a single part even when pan would suppress it', () => {
-    expect(
-      shouldShowHoleHover({ ...BASE, gestureKind: 'pan', gesturePanActive: true, isDragging: true }),
-    ).toBe(true);
+    expect(shouldShowHoleHover({ ...BASE, gestureKind: 'pan', gesturePanActive: true, isDragging: true })).toBe(true);
   });
 
   it('keeps hover while dragging even with space held', () => {

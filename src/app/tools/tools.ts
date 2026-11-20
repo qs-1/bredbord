@@ -346,10 +346,10 @@ export function shouldShowHoleHover({
   // so the user can see where the drop will land.
   if (isDragging) return true;
   // Any gesture that moves the view or reshapes a selection suppresses it.
-  if (gesturePanActive) return false;             // left-drag pan (active)
-  if (gestureKind === 'box') return false;        // box-select drag
-  if (gestureKind === 'group') return false;      // moving a group
-  if (gestureKind === 'board-group') return false;// moving boards as a group
+  if (gesturePanActive) return false; // left-drag pan (active)
+  if (gestureKind === 'box') return false; // box-select drag
+  if (gestureKind === 'group') return false; // moving a group
+  if (gestureKind === 'board-group') return false; // moving boards as a group
   // Space bar held = temporary grab-to-pan mode.
   if (spaceHeld) return false;
   // Middle mouse button pans via OrbitControls (no gesture is set for it).
