@@ -56,7 +56,9 @@ export function optionsOf(part: PartDoc | undefined): DeskOption[] {
       ];
     case 'resistor': {
       const now = part.value ?? 470;
-      return [{ id: 'value', label: 'Resistance', choices: numbers(RESISTOR_VALUES, now, formatOhms), current: String(now) }];
+      return [
+        { id: 'value', label: 'Resistance', choices: numbers(RESISTOR_VALUES, now, formatOhms), current: String(now) },
+      ];
     }
     case 'capacitor': {
       const now = part.value ?? (def.style === 'ceramic' ? 100e-9 : 1e-6);
