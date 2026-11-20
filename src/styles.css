@@ -2624,6 +2624,15 @@ select[data-dd] {
 .phone .bar1 .grow {
   display: none;
 }
+.phone .bar1 .acct-w {
+  order: 1;
+}
+.phone .bar1 .power {
+  order: 2;
+}
+.phone .bar1 > .mw:not(.acct-w) {
+  order: 3;
+}
 /* The bottom bar: each tool an icon over a short label. */
 .phone .bar2 > .grp {
   border: 0;
