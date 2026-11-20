@@ -304,7 +304,7 @@ export class UI {
   }
 
   private bindMenu(): void {
-    for (const list of [$('#menu-examples'), $('#menu-ex')]) {
+    for (const list of [$('#menu-ex')]) {
       for (const example of EXAMPLES) {
         const b = el('button', 'mi', example.title);
         b.setAttribute('role', 'menuitem');
