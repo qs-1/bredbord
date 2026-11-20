@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
+import { Store } from '../src/app/store';
 import { describePin, describeVolts, polarityTags } from '../src/app/tools/describe';
 import { clearDeskSpot, DESK_GAP, footprint, railSpan, supplySpotBeside } from '../src/app/tools/desk';
 import {
@@ -12,6 +13,7 @@ import {
   setScopeSettings,
   setSupplySettings,
 } from '../src/app/tools/edits';
+import { Tools } from '../src/app/tools/tools';
 import { boardSpec } from '../src/engine/breadboard';
 import { createDoc, type CircuitDoc, type HoleRef, type ScopeDoc } from '../src/engine/circuit';
 import { PARTS, type DipDef } from '../src/engine/parts';
@@ -202,5 +204,210 @@ describe('status bar words', () => {
     expect(plus.world.x).toBeLessThan(0);
     expect(minus.world.x).toBeGreaterThan(2.54);
     expect(polarityTags(PARTS.resistor, legs)).toEqual([]);
+  });
+});
+
+function createToolsFixture(doc: CircuitDoc = createDoc()) {
+  const mockElement = () => ({
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600 }),
+    append: () => {},
+    classList: { add: () => {}, remove: () => {} },
+    style: {},
+    hidden: false,
+    className: '',
+  });
+
+  if (typeof globalThis.document === 'undefined') {
+    (globalThis as any).document = {
+      body: mockElement(),
+      createElement: () => mockElement(),
+    };
+  }
+  if (typeof globalThis.window === 'undefined') {
+    (globalThis as any).window = {
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    };
+  }
+
+  const camera = new THREE.PerspectiveCamera(50, 800 / 600, 0.1, 2000);
+  camera.position.set(0, 500, 0);
+  camera.up.set(0, 0, -1);
+  camera.lookAt(0, 0, 0);
+  camera.updateMatrixWorld();
+  camera.updateProjectionMatrix();
+
+  const store = new Store(doc);
+
+  // A controllable surface point: tests set this to steer moveBoardGroup / surfacePoint().
+  let surfacePt = new THREE.Vector3(0, 0, 0);
+  const setSurface = (v: THREE.Vector3) => {
+    surfacePt = v;
+  };
+
+  // Proxy: any property access returns a no-op function or empty value by default;
+  // specific overrides are defined below so the tests can actually assert on board geometry.
+  const syncBase = {
+    layoutVersion: 1,
+    occupancy: new Map<string, unknown>(),
+    covered: new Set<string>(),
+    wires: new Proxy({ restyle: () => {} }, { get: (t, k) => (k in t ? t[k as keyof typeof t] : () => []) }),
+    connectivity: { members: () => [] as any[] },
+    // Returns the live surfacePt so tests can steer moveBoardGroup.
+    surfacePoint: () => surfacePt.clone(),
+    boardBounds: (id: string) => {
+      const b = store.doc.boards.find((x) => x.id === id);
+      if (!b) return null;
+      const spec = boardSpec(b.type);
+      return new THREE.Box3(
+        new THREE.Vector3(b.x - spec.length / 2, 0, b.z - spec.width / 2),
+        new THREE.Vector3(b.x + spec.length / 2, 10, b.z + spec.width / 2),
+      );
+    },
+    partOutline: () => new THREE.Box3(new THREE.Vector3(-10, 0, -10), new THREE.Vector3(10, 10, 10)),
+  };
+  const sync: any = new Proxy(syncBase, {
+    get(target, key) {
+      if (key in target) return target[key as keyof typeof target];
+      return () => null;
+    },
+  });
+
+  const view: any = {
+    overlay: new THREE.Group(),
+    world: new THREE.Group(),
+    camera,
+    onCameraChange: () => {},
+    invalidate: () => {},
+    rayFrom: () => new THREE.Ray(),
+    stopGliding: () => {},
+    touchMove: () => {},
+    setLoupe: () => {},
+    setWheelZooms: () => {},
+    fit: () => {},
+    panBy: () => {},
+    setLeftButtonPans: () => {},
+    toggleTopView: () => {},
+    frameFace: () => {},
+  };
+  const sim: any = {
+    onChange: () => {},
+    toggleSwitch: () => {},
+    setPowerJumper: () => {},
+  };
+  const canvas: any = mockElement();
+
+  const tools = new Tools(view, store, sync, sim, canvas);
+  return { tools, store, sync, view, setSurface };
+}
+
+describe('board group selection and movement', () => {
+  it('shift-click-selects multiple boards into a group and toggles them', () => {
+    const doc = createDoc();
+    // doc starts with b1 at 0, 0. Add a second board b2 at 0, 80.
+    doc.boards.push({ id: 'b2', type: 'bb830', x: 0, z: 80 });
+    const { tools } = createToolsFixture(doc);
+
+    // Initial click selects b1
+    (tools as any).hoverItem = { kind: 'board', id: 'b1' };
+    (tools as any).clickSelect(false);
+    expect(tools.selection).toEqual({ kind: 'board', id: 'b1' });
+    expect(tools.selectionCount).toBe(1);
+
+    // Shift-click on b2 adds it to the group
+    (tools as any).hoverItem = { kind: 'board', id: 'b2' };
+    (tools as any).clickSelect(true);
+    expect((tools as any).group).toEqual([
+      { kind: 'board', id: 'b1' },
+      { kind: 'board', id: 'b2' },
+    ]);
+    expect(tools.selectionCount).toBe(2);
+
+    // Shift-clicking b1 removes it from the group, leaving b2 as a single selection
+    (tools as any).hoverItem = { kind: 'board', id: 'b1' };
+    (tools as any).clickSelect(true);
+    expect(tools.selection).toEqual({ kind: 'board', id: 'b2' });
+    expect(tools.selectionCount).toBe(1);
+  });
+
+  it('box-selects 2+ boards inside the selection rectangle', () => {
+    const doc = createDoc();
+    doc.boards.push({ id: 'b2', type: 'bb830', x: 0, z: 60 });
+    const { tools } = createToolsFixture(doc);
+
+    // Drag a box covering the full viewport which contains both boards
+    (tools as any).finishBox({ kind: 'box', x: 0, y: 0, add: false }, { clientX: 800, clientY: 600 } as PointerEvent);
+    const selectedIds = (tools as any).group.map((item: any) => item.id);
+    expect(selectedIds).toContain('b1');
+    expect(selectedIds).toContain('b2');
+  });
+
+  it('drags a board-only group together and refuses to merge or overlap onto obstacles', () => {
+    const doc = createDoc();
+    // b1 at 0, 0 and b2 at 0, 70. Obstacle board b3 at 0, 170.
+    doc.boards = [
+      { id: 'b1', type: 'bb400', x: 0, z: 0 },
+      { id: 'b2', type: 'bb400', x: 0, z: 70 },
+      { id: 'b3', type: 'bb400', x: 0, z: 170 },
+    ];
+    const { tools, store, setSurface } = createToolsFixture(doc);
+    (tools as any).setGroup([
+      { kind: 'board', id: 'b1' },
+      { kind: 'board', id: 'b2' },
+    ]);
+
+    // Start drag on b1 from origin; surfacePoint starts at (0,0,0)
+    (tools as any).startDrag({ item: { kind: 'board', id: 'b1' } }, new THREE.Vector3(0, 0, 0));
+    expect((tools as any).gesture?.kind).toBe('board-group');
+
+    // Drag group to a valid position: pointer moves to z=-40, so group shifts -40 in z
+    (tools as any).pointerInside = true;
+    setSurface(new THREE.Vector3(0, 0, -40));
+    (tools as any).moveBoardGroup((tools as any).gesture);
+
+    expect(store.doc.boards.find((b) => b.id === 'b1')!.z).toBeCloseTo(-40);
+    expect(store.doc.boards.find((b) => b.id === 'b2')!.z).toBeCloseTo(30); // 70 - 40
+
+    // Now try to drag group by delta dz=+100: b1 lands at z=100 (clear), but b2 would land at z=170 (collides with b3)
+    setSurface(new THREE.Vector3(0, 0, 100));
+    (tools as any).moveBoardGroup((tools as any).gesture);
+
+    // The move is refused because b2's destination is blocked by b3
+    expect((tools as any).gesture.reason).toBe('Something is in the way');
+    // Positions remain at the last valid spot (-40 and 30)
+    expect(store.doc.boards.find((b) => b.id === 'b1')!.z).toBeCloseTo(-40);
+    expect(store.doc.boards.find((b) => b.id === 'b2')!.z).toBeCloseTo(30);
+  });
+
+  it('confirms mixed board+part selection does not crash and falls back as intended', () => {
+    const doc = createDoc();
+    doc.parts.push({
+      id: 'r1',
+      def: 'resistor',
+      pins: [
+        { board: 'b1', hole: 'a1' },
+        { board: 'b1', hole: 'a5' },
+      ],
+    });
+    const { tools } = createToolsFixture(doc);
+
+    // Mixed group with a board and a part
+    (tools as any).setGroup([
+      { kind: 'board', id: 'b1' },
+      { kind: 'part', id: 'r1' },
+    ]);
+
+    // Dragging either member should gracefully return without crashing or starting invalid move
+    expect(() => {
+      (tools as any).startDrag({ item: { kind: 'board', id: 'b1' } }, new THREE.Vector3(0, 0, 0));
+    }).not.toThrow();
+    expect((tools as any).gesture).toBeNull();
+
+    expect(() => {
+      (tools as any).startDrag({ item: { kind: 'part', id: 'r1' } }, new THREE.Vector3(0, 0, 0));
+    }).not.toThrow();
+    expect((tools as any).gesture).toBeNull();
   });
 });

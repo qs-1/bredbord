@@ -240,10 +240,11 @@ export function boardSpot(
   z: number,
   span: RailSpan | undefined,
   snapping: boolean,
+  extraIgnore?: ReadonlySet<Id>,
 ): DeskSpot {
-  if (!span) return clearDeskSpot(doc, 'board', x, z, { self: id, type, snapping });
+  const ignore = new Set([id, ...clippedTo(doc, id).map((b) => b.id), ...(extraIgnore ?? [])]);
+  if (!span) return clearDeskSpot(doc, 'board', x, z, { self: id, type, snapping, ignore });
   // It and its rails land as one: clear of everything else, snapped by their outline.
-  const ignore = new Set([id, ...clippedTo(doc, id).map((b) => b.id)]);
   const at = clearDeskSpot(doc, 'board', x + span.cx, z + span.cz, {
     self: id,
     type,

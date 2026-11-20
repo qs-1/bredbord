@@ -42,7 +42,7 @@ import {
   type PartDef,
   type PowerSide,
 } from '../../engine/parts';
-import { detachable, detachRails, rejoinRails, unitOf, whyRailsStay } from '../../engine/rails';
+import { clippedTo, detachable, detachRails, rejoinRails, unitOf, whyRailsStay } from '../../engine/rails';
 import {
   autoLevel,
   autoset,
@@ -177,6 +177,20 @@ type Gesture =
       key: string;
       moved: boolean;
       /** Why the latest spot it was dragged to won't do, if it won't. */
+      reason?: string;
+    }
+  | {
+      kind: 'board-group';
+      start: THREE.Vector3;
+      lead: Id;
+      from: {
+        boards: Array<{ id: Id; origX: number; origZ: number; type: BoardType; span?: RailSpan }>;
+        rails: Array<{ id: Id; parent: Id; origX: number; origZ: number }>;
+        wires: Array<{ id: Id; points: Array<{ x: number; z: number }> }>;
+        allBoardIds: Set<Id>;
+      };
+      key: string;
+      moved: boolean;
       reason?: string;
     }
   /** On the empty desk (or a board not selected): pans the view the same way a middle-button drag does. */
@@ -513,8 +527,8 @@ export class Tools {
     return this.gestureOf('drag');
   }
 
-  private get groupMove(): GestureOf<'group'> | null {
-    return this.gestureOf('group');
+  private get groupMove(): GestureOf<'group'> | GestureOf<'board-group'> | null {
+    return this.gestureOf('group') ?? this.gestureOf('board-group');
   }
 
   // ---- dragging things in from the parts panel ----
@@ -966,9 +980,14 @@ export class Tools {
     this.refresh();
   }
 
-  /** Parts and wires go in groups; a power module stays put at its board's end, so it doesn't. */
+  /** Parts, wires and boards go in groups; a power module stays put at its board's end, so it doesn't. */
   private groupable(item: ItemRef | null): item is ItemRef {
-    return !!item && (item.kind === 'wire' || (item.kind === 'part' && this.fit.partDef(item.id)?.kind !== 'power'));
+    return (
+      !!item &&
+      (item.kind === 'wire' ||
+        item.kind === 'board' ||
+        (item.kind === 'part' && this.fit.partDef(item.id)?.kind !== 'power'))
+    );
   }
 
   /** Selects every part and wire. */
@@ -996,7 +1015,7 @@ export class Tools {
     this.copyDrag = false;
     const g = this.gesture;
     if (this.pasting) this.pasting = null;
-    else if (g?.kind === 'group') {
+    else if (g?.kind === 'group' || g?.kind === 'board-group') {
       if (g.moved) this.store.undo();
       this.gesture = null;
     } else if (g?.kind === 'box') this.endPointer();
@@ -1052,9 +1071,13 @@ export class Tools {
 
   deleteSelection(): void {
     if (this.group.length) {
-      const ids = new Set(this.group.map((g) => g.id));
+      const group = this.group;
       this.group = [];
       this.store.update((doc) => {
+        for (const item of group) {
+          if (item.kind === 'board') deleteItem(doc, item);
+        }
+        const ids = new Set(group.map((g) => g.id));
         doc.parts = doc.parts.filter((p) => !ids.has(p.id));
         doc.wires = doc.wires.filter((w) => !ids.has(w.id));
       });
@@ -1535,6 +1558,10 @@ export class Tools {
         this.moveGroup(g);
         this.refresh();
         return;
+      case 'board-group':
+        this.moveBoardGroup(g);
+        this.refresh();
+        return;
       case 'supply-knob':
         this.setSupply(g.id, { [g.knob]: g.was + (e.clientX - g.x - (e.clientY - g.y)) * SUPPLY_STEP[g.knob].pixel });
         return;
@@ -1628,10 +1655,9 @@ export class Tools {
     const item = this.hoverItem;
     // A board moves once it's selected; until then a drag on it moves the view, like on the desk.
     // With Shift held, a drag draws a box to select what's inside it.
-    const unselectedBoard =
-      item?.kind === 'board' &&
-      this.selection?.id !== item.id &&
-      this.selection?.id !== unitOf(this.store.doc, item.id);
+    const selectedBoard =
+      item?.kind === 'board' && this.selected.some((s) => s.id === item.id || s.id === unitOf(this.store.doc, item.id));
+    const unselectedBoard = item?.kind === 'board' && !selectedBoard;
     // Shift, or Ctrl (Cmd), adds to what's selected: a click toggles one thing in or out, a drag boxes more.
     const adding = e.shiftKey || e.ctrlKey || e.metaKey || this.multiSelect;
     if (!item || (item.kind === 'board' && (adding || unselectedBoard))) {
@@ -1670,7 +1696,7 @@ export class Tools {
       ...at,
       item: { kind: item.kind, id: item.id },
       start: this.surfacePoint(),
-      copy: e.altKey && this.groupable(item),
+      copy: e.altKey && this.groupable(item) && item.kind !== 'board',
     });
   }
 
@@ -1739,6 +1765,7 @@ export class Tools {
         if (!g.active) break;
         return this.finishBox(g, e);
       case 'group':
+      case 'board-group':
         if (g.reason) this.toast(g.reason);
         return this.refresh();
       case 'bend':
@@ -2286,8 +2313,9 @@ export class Tools {
       return;
     }
     if (shift && this.groupable(item)) {
+      const target: ItemRef = item.kind === 'board' ? { kind: 'board', id: this.boardClick(item) } : item;
       const now = this.selected.filter((g) => this.groupable(g));
-      this.setGroup(now.some((g) => g.id === item.id) ? now.filter((g) => g.id !== item.id) : [...now, item]);
+      this.setGroup(now.some((g) => g.id === target.id) ? now.filter((g) => g.id !== target.id) : [...now, target]);
     } else this.setGroup(item ? [item.kind === 'board' ? { kind: 'board', id: this.boardClick(item) } : item] : []);
     this.refresh();
   }
@@ -2430,7 +2458,57 @@ export class Tools {
   private startDrag(g: GestureOf<'press'>, start: THREE.Vector3): void {
     this.gesture = null;
     if (g.copy) return this.startCopyDrag(g.item, start);
-    if (this.group.some((x) => x.id === g.item.id)) {
+    if (
+      this.group.some(
+        (x) => x.id === g.item.id || (g.item.kind === 'board' && x.id === unitOf(this.store.doc, g.item.id)),
+      )
+    ) {
+      const hasBoard = this.group.some((x) => x.kind === 'board');
+      const hasOther = this.group.some((x) => x.kind !== 'board');
+      if (hasBoard && hasOther) {
+        // TODO: Mixed selection of boards and parts/wires moving together is not supported yet.
+        return;
+      }
+      if (hasBoard) {
+        const doc = this.store.doc;
+        const boards: Array<{ id: Id; origX: number; origZ: number; type: BoardType; span?: RailSpan }> = [];
+        const rails: Array<{ id: Id; parent: Id; origX: number; origZ: number }> = [];
+        const allBoardIds = new Set<Id>();
+        for (const item of this.group) {
+          if (item.kind !== 'board') continue;
+          const b = doc.boards.find((x) => x.id === item.id);
+          if (!b) continue;
+          boards.push({
+            id: b.id,
+            origX: b.x,
+            origZ: b.z,
+            type: b.type,
+            span: railSpan(doc, b.id),
+          });
+          allBoardIds.add(b.id);
+          for (const rail of clippedTo(doc, b.id)) {
+            rails.push({ id: rail.id, parent: b.id, origX: rail.x, origZ: rail.z });
+            allBoardIds.add(rail.id);
+          }
+        }
+        if (!boards.length) return;
+        const wires: Array<{ id: Id; points: Array<{ x: number; z: number }> }> = [];
+        for (const w of doc.wires) {
+          if (w.points && allBoardIds.has(w.a.board) && allBoardIds.has(w.b.board)) {
+            wires.push({ id: w.id, points: w.points.map((p) => ({ ...p })) });
+          }
+        }
+        const leadId = this.group.find((x) => x.id === g.item.id || x.id === unitOf(doc, g.item.id))?.id ?? g.item.id;
+        this.gesture = {
+          kind: 'board-group',
+          start,
+          lead: leadId,
+          from: { boards, rails, wires, allBoardIds },
+          key: '0,0',
+          moved: false,
+        };
+        return;
+      }
       const from = groupAsIs(this.store.doc, new Set(this.group.map((x) => x.id)));
       this.gesture = { kind: 'group', start, from, key: '0,0', moved: false };
       return;
@@ -2528,6 +2606,30 @@ export class Tools {
         return n.z < 1 && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
       });
     const found: ItemRef[] = [];
+    for (const b of this.store.doc.boards) {
+      if (!this.groupable({ kind: 'board', id: b.id })) continue;
+      if (b.on && this.store.doc.boards.some((o) => o.id === b.on)) continue;
+      const span = railSpan(this.store.doc, b.id);
+      let minX: number, maxX: number, minZ: number, maxZ: number, maxY: number;
+      if (span) {
+        minX = b.x + span.cx - span.x / 2;
+        maxX = b.x + span.cx + span.x / 2;
+        minZ = b.z + span.cz - span.z / 2;
+        maxZ = b.z + span.cz + span.z / 2;
+        maxY = H;
+      } else {
+        const box = this.sync.boardBounds(b.id);
+        if (!box) continue;
+        minX = box.min.x;
+        maxX = box.max.x;
+        minZ = box.min.z;
+        maxZ = box.max.z;
+        maxY = box.max.y;
+      }
+      const corners = [minX, maxX].flatMap((x) => [minZ, maxZ].map((z) => new THREE.Vector3(x, 0, z)));
+      corners.push(...corners.map((c) => c.clone().setY(maxY)));
+      if (inside(corners)) found.push({ kind: 'board', id: b.id });
+    }
     for (const p of this.store.doc.parts) {
       const b = this.sync.partOutline(p.id);
       if (!b || !this.groupable({ kind: 'part', id: p.id })) continue;
@@ -2572,6 +2674,78 @@ export class Tools {
   }
 
   /**
+   * Moves a group of boards by desk-space delta to follow the pointer. Snaps boards into line and
+   * pushes clear via clearDeskSpot, validating each board independently. If any board's destination
+   * is invalid, the move for that step is rejected and the group waits at the last spot that worked.
+   */
+  private moveBoardGroup(gm: GestureOf<'board-group'>): void {
+    const point = this.pointerInside ? this.surfacePoint() : null;
+    if (!point) return;
+    const lead = gm.from.boards.find((b) => b.id === gm.lead) ?? gm.from.boards[0];
+    if (!lead) return;
+    const wantLeadX = lead.origX + point.x - gm.start.x;
+    const wantLeadZ = lead.origZ + point.z - gm.start.z;
+    const leadSpot = boardSpot(
+      this.store.doc,
+      lead.id,
+      lead.type,
+      wantLeadX,
+      wantLeadZ,
+      lead.span,
+      this.snapping,
+      gm.from.allBoardIds,
+    );
+    if (!leadSpot.valid) {
+      gm.reason = 'Something is in the way';
+      return;
+    }
+    const dx = leadSpot.x - lead.origX;
+    const dz = leadSpot.z - lead.origZ;
+    const key = `${dx.toFixed(2)},${dz.toFixed(2)}`;
+    if (key === gm.key) return;
+
+    for (const b of gm.from.boards) {
+      const destX = round1(b.origX + dx);
+      const destZ = round1(b.origZ + dz);
+      const spot = boardSpot(this.store.doc, b.id, b.type, destX, destZ, b.span, false, gm.from.allBoardIds);
+      if (!spot.valid || Math.abs(spot.x - destX) > 0.1 || Math.abs(spot.z - destZ) > 0.1) {
+        gm.reason = 'Something is in the way';
+        return;
+      }
+    }
+
+    gm.reason = undefined;
+    gm.key = key;
+    const first = !gm.moved;
+    gm.moved = true;
+    this.store.update(
+      (doc) => {
+        for (const b of gm.from.boards) {
+          const target = doc.boards.find((x) => x.id === b.id);
+          if (target) {
+            target.x = round1(b.origX + dx);
+            target.z = round1(b.origZ + dz);
+          }
+        }
+        for (const r of gm.from.rails) {
+          const target = doc.boards.find((x) => x.id === r.id);
+          if (target) {
+            target.x = round2(r.origX + dx);
+            target.z = round2(r.origZ + dz);
+          }
+        }
+        for (const w of gm.from.wires) {
+          const target = doc.wires.find((x) => x.id === w.id);
+          if (target) {
+            target.points = w.points.map((p) => ({ x: round1(p.x + dx), z: round1(p.z + dz) }));
+          }
+        }
+      },
+      { history: first },
+    );
+  }
+
+  /**
    * Arrow keys: moves what's selected one hole that way on screen, like nudging in Figma or KiCad.
    * Parts and wires go to the next hole that way (across the centre channel or a gap between rail
    * groups, that's the hole on the far side); a board or bench instrument moves one hole's pitch.
@@ -2581,7 +2755,7 @@ export class Tools {
     const items = this.selected;
     if (this.mode !== 'select' || !items.length || this.gesture || this.dragIn || this.pasting) return false;
     const { x, z } = this.screenAxis(arrow);
-    if (items.every((g) => this.groupable(g))) {
+    if (items.every((g) => g.kind !== 'board' && this.groupable(g))) {
       const from = groupAsIs(this.store.doc, new Set(items.map((g) => g.id)));
       for (let k = 1; k <= 6; k++) {
         const [dx, dz] = [x * k * PITCH, z * k * PITCH];
@@ -2876,7 +3050,12 @@ export class Tools {
   private cursor(): string {
     const g = this.gesture;
     if (this.spaceHeld) return 'grab';
-    const grabbing = (g?.kind === 'pan' && g.active) || g?.kind === 'drag' || g?.kind === 'bend' || g?.kind === 'group';
+    const grabbing =
+      (g?.kind === 'pan' && g.active) ||
+      g?.kind === 'drag' ||
+      g?.kind === 'bend' ||
+      g?.kind === 'group' ||
+      g?.kind === 'board-group';
     if (grabbing || this.dragIn?.board) return 'grabbing';
     if (g?.kind === 'box' || this.pasting) return 'crosshair';
     if (this.handleUnderPointer() || this.legUnderPointer()) return 'move';
@@ -2897,7 +3076,7 @@ export class Tools {
       return 'pointer';
     // A board only moves once it's selected; until then a drag on it moves the view.
     const doc = this.store.doc;
-    if (item.kind === 'board' && this.selection?.id !== item.id && this.selection?.id !== unitOf(doc, item.id))
+    if (item.kind === 'board' && !this.selected.some((s) => s.id === item.id || s.id === unitOf(doc, item.id)))
       return '';
     return 'grab';
   }
@@ -3113,7 +3292,7 @@ export class Tools {
     this.highlights.setBoxes(
       sel && sel.kind !== 'wire' ? sel.id : '',
       hov && hov.kind !== 'wire' ? hov.id : '',
-      group.filter((g) => g.kind === 'part').map((g) => g.id),
+      group.filter((g) => g.kind === 'part' || g.kind === 'board').map((g) => g.id),
     );
   }
 
