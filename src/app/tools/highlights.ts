@@ -81,14 +81,25 @@ export class Highlights {
     this.setBox(this.hovered, hovered, HOVERED);
     const layout = this.sync.layoutVersion;
     this.replace(this.group, `${group.join(',')}@${layout}`, () => {
-      const boxes = group.flatMap((id) => {
-        const box = this.sync.partOutline(id);
-        if (!box) return [];
-        box.expandByScalar(PART_PAD);
-        box.min.y = Math.max(box.min.y, H + 0.05);
-        return [box];
-      });
-      return boxes.length ? boxShell(boxes, SELECTED) : null;
+      const container = new THREE.Group();
+      const boxes: THREE.Box3[] = [];
+      for (const id of group) {
+        const pieces = this.boardPieces(id);
+        if (pieces) {
+          container.add(this.pieceBoxes(pieces, SELECTED));
+          continue;
+        }
+        const part = this.sync.partOutline(id);
+        const board = this.sync.boardBounds(id);
+        const box = part ?? board;
+        if (box) {
+          box.expandByScalar(part ? PART_PAD : 0.7);
+          box.min.y = part ? Math.max(box.min.y, H + 0.05) : Math.max(box.min.y, 0.05);
+          boxes.push(box);
+        }
+      }
+      if (boxes.length) container.add(boxShell(boxes, SELECTED));
+      return container.children.length ? container : null;
     });
   }
 
