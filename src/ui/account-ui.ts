@@ -190,11 +190,7 @@ export class AccountUI {
       const slot = h('div', { className: 'acct-g' }, 'Loading Google sign-in…');
       this.dlg.replaceChildren(
         h('h3', { id: 'acct-t' }, 'Sign in'),
-        h(
-          'p',
-          {},
-          'Keep your circuits in your account, so they’re on this computer and your phone, and share them. Bredbord works the same without signing in.',
-        ),
+        h('p', {}, 'Save your circuits to your account and share them.'),
         slot,
         problem,
         h(
