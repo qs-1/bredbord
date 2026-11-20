@@ -4,6 +4,18 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover" />
     <title>Bredbord desk</title>
+    <!--
+      Paint the correct background before the stylesheet loads so there is no
+      flash of white/wrong colour on first render (especially on Android WebView).
+      These values must stay in sync with --desk in src/embed.css.
+      The embed is light-only, so no dark variant here.
+    -->
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#e9e7e1" />
+    <style>
+      html, body { background: #e9e7e1; }
+      #viewport { background: #e9e7e1; }
+    </style>
   </head>
   <body>
     <!-- The desk on its own, for the phone app to show inside its workbench screen: the 3D view and
