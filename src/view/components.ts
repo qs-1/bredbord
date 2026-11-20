@@ -540,6 +540,8 @@ function canGeometry(r: number, h: number): THREE.BufferGeometry {
       pts.push(new THREE.Vector2(r - roll + roll * Math.cos(a), h - roll + roll * Math.sin(a)));
     }
     pts.push(new THREE.Vector2(r - roll - 0.25, h));
+    // ...and down to the aluminium top, which sits 0.12 mm lower: otherwise a ring of daylight shows between them.
+    pts.push(new THREE.Vector2(r - roll - 0.25, h - 0.12));
     const sleeve = new THREE.LatheGeometry(pts, 32);
     // The label is printed up the can, so it's mapped by height rather than along the outline.
     const pos = sleeve.attributes.position;

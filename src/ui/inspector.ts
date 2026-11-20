@@ -1116,6 +1116,7 @@ function pinList(
   list.classList.toggle('on-desk', !!part);
   list.append(body);
   const marks: (HTMLElement | null)[] = [];
+  const rows: HTMLElement[] = [];
   const cell = (i: number, side: 'l' | 'r', row: number): void => {
     const d = el('div', side);
     const lv = el('span', 'lv');
@@ -1136,6 +1137,7 @@ function pinList(
       d.addEventListener('pointerleave', () => deps.tools.pointCardPins(null));
     }
     marks[i] = lv;
+    rows[i] = d;
     list.append(d);
   };
   if (inLine) for (let i = 0; i < n; i++) cell(i, 'r', i);
@@ -1148,6 +1150,9 @@ function pinList(
   if (part) {
     const { sim } = deps;
     card.live(() => {
+      // The pin the pointer is on, on the desk, is lit here too.
+      const at = deps.tools.pointedPin;
+      rows.forEach((row, i) => row.classList.toggle('hot', at?.id === part.id && at.pin === i));
       const live = sim.result.live;
       part.pins.forEach((ref, i) => {
         const m = marks[i];
