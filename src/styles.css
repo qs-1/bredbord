@@ -1606,6 +1606,11 @@ select[data-dd] {
 .primary:hover {
   background: #3a3631;
 }
+a.primary {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
 .primary:active {
   transform: scale(0.98);
 }

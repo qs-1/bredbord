@@ -435,18 +435,20 @@
       </main>
     </div>
 
-    <div
-      class="modal"
-      id="phone"
-      role="alertdialog"
-      aria-modal="true"
-      aria-labelledby="phone-t"
-      aria-describedby="phone-p"
-    >
+    <div class="modal" id="phone" role="alertdialog" aria-modal="true" aria-labelledby="phone-t">
       <div class="dlg">
-        <h3 id="phone-t">Best on a computer</h3>
-        <p id="phone-p">It works on phones and tablets too, but not everything does yet.</p>
-        <div class="dlg-b"><span class="grow"></span><button class="primary">Continue</button></div>
+        <h3 id="phone-t">There's an Android app</h3>
+        <div class="dlg-b">
+          <span class="grow"></span><button class="btn" data-phone="stay">Use the website</button
+          ><a
+            class="primary"
+            data-phone="app"
+            href="https://github.com/qs-1/bredbord-app/releases/latest"
+            target="_blank"
+            rel="noopener"
+            >Get the app</a
+          >
+        </div>
       </div>
     </div>
     <div class="modal" id="ask" role="alertdialog" aria-modal="true" aria-labelledby="ask-t" aria-describedby="ask-p">

@@ -33,11 +33,12 @@ try {
 } catch {
   // Storage blocked: ask each time.
 }
-if (!onTouch() || touchOk) start();
+// On an Android phone or tablet, once: point to the app. Anywhere else, straight in.
+if (!onTouch() || !/Android/i.test(navigator.userAgent) || touchOk) start();
 else {
   const ask = document.getElementById('phone')!;
   ask.classList.add('open');
-  ask.querySelector('button')!.addEventListener('click', () => {
+  const go = (): void => {
     try {
       localStorage.setItem(TOUCH_OK, '1');
     } catch {
@@ -45,5 +46,7 @@ else {
     }
     ask.classList.remove('open');
     start();
-  });
+  };
+  // Getting the app opens its page in a new tab; the website carries on loading here behind it.
+  ask.querySelectorAll('[data-phone]').forEach((b) => b.addEventListener('click', go));
 }
