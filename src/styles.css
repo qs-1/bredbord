@@ -3090,6 +3090,19 @@ a.primary {
     animation: none;
   }
 }
+/* A narrow screen: the name gets the row, the buttons go under it on the right. */
+@media (max-width: 480px) {
+  .mine-list li {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+  .mine-text {
+    flex-basis: calc(100% - 56px);
+  }
+  .mine-text + .btn {
+    margin-left: auto;
+  }
+}
 
 /* ---------- playing a shared circuit: a thin bar over the top of the desk ---------- */
 .playbar {
