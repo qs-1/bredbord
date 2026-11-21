@@ -26,12 +26,13 @@
     </header>
     <main class="page" id="page" aria-busy="true">
       <article class="shared" id="shared">
-        <div class="pic" id="pic"></div>
+        <div class="pic" id="pic">
+          <button class="playbig" id="play" type="button" hidden><span class="ic" data-ic="play"></span>Play</button>
+        </div>
         <h1 id="title"><span class="ph w60"></span></h1>
         <p class="maker" id="maker"><span class="ph w30"></span></p>
         <div class="acts" id="acts" hidden>
-          <a class="primary" id="play" href="/app/"><span class="ic" data-ic="play"></span>Play</a>
-          <a class="btn" id="remix" href="/app/"><span class="ic" data-ic="remix"></span>Remix</a>
+          <a class="primary" id="go" href="/app/"></a>
           <button class="btn like" id="like" type="button" aria-pressed="false"></button>
           <button class="ib line" id="copy" type="button" data-tip="Copy link" aria-label="Copy link">
             <span class="ic" data-ic="link"></span>
@@ -47,7 +48,7 @@
             >
               <span class="ic" data-ic="more"></span>
             </button>
-            <div class="menu" id="menu-more" role="menu"></div>
+            <div class="menu right" id="menu-more" role="menu"></div>
           </div>
         </div>
         <p class="desc" id="desc"></p>

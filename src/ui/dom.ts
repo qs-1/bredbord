@@ -10,6 +10,38 @@ export function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = ''
   return node;
 }
 
+/**
+ * An element with `text` in it, where a pin name's bar (Q\u03041, 1Q\u0304, written with a combining macron) is
+ * drawn as a line over the whole name it covers (Q1, or just the Q of 1Q), not by the font, which puts
+ * the macron over the wrong letter.
+ */
+export function barred<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  className: string,
+  text: string,
+): HTMLElementTagNameMap[K] {
+  const node = el(tag, className);
+  setBarred(node, text);
+  return node;
+}
+
+/** Sets `node`'s text as `barred` draws it. */
+export function setBarred(node: HTMLElement, text: string): void {
+  if (!text.includes('\u0304')) {
+    node.textContent = text;
+    return;
+  }
+  const parts: Node[] = [];
+  let last = 0;
+  for (const m of text.matchAll(/([A-Za-z])\u0304([A-Za-z0-9]*)/g)) {
+    if (m.index > last) parts.push(document.createTextNode(text.slice(last, m.index)));
+    parts.push(el('span', 'bar', m[1] + m[2]));
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push(document.createTextNode(text.slice(last)));
+  node.replaceChildren(...parts);
+}
+
 /** Sets an element's text only when it changes, so readings updated every frame don't touch the DOM. */
 export function setText(node: HTMLElement, text: string): void {
   if (node.textContent !== text) node.textContent = text;

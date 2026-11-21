@@ -1160,9 +1160,11 @@ select[data-dd] {
 .pinl.inline .pkg {
   grid-column: 1;
 }
+/* The notch hangs from the inside of the outline's top edge, and covers that edge over its mouth: the
+   edge is drawn a whole screen pixel thick, so pulling the notch up by 1.5px left it standing proud. */
 .pkg .notch {
   position: absolute;
-  top: -1.5px;
+  top: 0;
   left: 50%;
   width: 14px;
   height: 7px;
@@ -1171,6 +1173,15 @@ select[data-dd] {
   border-radius: 0 0 7px 7px;
   background: var(--card, var(--bg));
   transform: translateX(-50%);
+}
+.pkg .notch::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 3px;
+  background: inherit;
 }
 .pinl > div:not(.pkg) {
   display: flex;
@@ -1594,6 +1605,11 @@ select[data-dd] {
 }
 .primary:hover {
   background: #3a3631;
+}
+a.primary {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
 }
 .primary:active {
   transform: scale(0.98);
@@ -2642,6 +2658,27 @@ select[data-dd] {
 .phone .bar2 .grp > * + * {
   border-left: 0;
 }
+/* As in the phone app: every tool an equal tile across the bar, icon over label, its on and pressed
+   tint rounded on its own. */
+.phone .bar2 > .grp:not(.no-phone) {
+  display: contents;
+}
+.phone .bar2 > .grp > button,
+.phone .bar2 > .grp > .mw {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0 2px;
+}
+.phone .bar2 .grp > button,
+.phone .bar2 .grp > .mw > button {
+  width: 100%;
+  border-radius: 12px;
+}
+.phone .bar2 .grp > .mw > .wc {
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+}
 .phone .bar2 .grp > button.w,
 .phone .bar2 .grp > .mw > button.w {
   flex-direction: column;
@@ -2760,6 +2797,34 @@ select[data-dd] {
 .phone .hint kbd {
   display: none;
 }
+/* As in the phone app: Rotate, Duplicate and Delete in a column at the right edge, just above the
+   card, which then only holds what can be set; the card's own rotate and delete make way. */
+.phone .selbar {
+  left: auto;
+  top: auto;
+  right: 10px;
+  bottom: calc(var(--ch, 0px) + 12px);
+  flex-direction: column;
+  border-radius: var(--r-card);
+}
+.phone .selbar > * + * {
+  border-left: 0;
+  border-top: 1px solid var(--line);
+}
+.phone .selbar > button {
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  justify-content: center;
+  gap: 0;
+  font-size: 0;
+}
+.phone #sb-delete {
+  color: #c8352b;
+}
+.phone .card .hd .ib {
+  display: none;
+}
 .phone .card .hd::before {
   position: absolute;
   left: 50%;
@@ -2819,12 +2884,31 @@ select[data-dd] {
 .acct-menu {
   min-width: 160px;
 }
+/* Signed in, the picture is the button: no wider slot round it. */
+.acct-b.pic {
+  width: auto;
+  height: auto;
+  border-radius: 6px;
+}
+.acct-b.pic:hover,
+.acct-b.pic[aria-expanded='true'] {
+  background: none;
+}
+.acct-b.pic svg {
+  outline: 1px solid var(--line-2);
+  outline-offset: -1px;
+}
+.acct-b.pic:hover svg,
+.acct-b.pic[aria-expanded='true'] svg {
+  outline: 1.5px solid var(--ink-2);
+  outline-offset: -1.5px;
+}
 .acct-b.pic svg,
 .acct-me svg {
   display: block;
-  width: 32px;
-  height: 24px;
-  border-radius: 4px;
+  width: 36px;
+  height: 27px;
+  border-radius: 6px;
   background: var(--desk);
 }
 .acct-head {
@@ -3006,51 +3090,29 @@ select[data-dd] {
     animation: none;
   }
 }
+/* A narrow screen: the name gets the row, the buttons go under it on the right. */
+@media (max-width: 480px) {
+  .mine-list li {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+  .mine-text {
+    flex-basis: calc(100% - 56px);
+  }
+  .mine-text + .btn {
+    margin-left: auto;
+  }
+}
 
-/* ---------- playing a shared circuit: a thin bar over the top of the desk ---------- */
-.playbar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: var(--pw);
-  z-index: 14;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 44px;
-  padding: 0 8px 0 14px;
-  background: var(--card);
-  border-bottom: 1px solid var(--line);
-  opacity: 0;
-  transform: translateY(-6px);
-  transition:
-    opacity 0.16s var(--ease),
-    transform 0.16s var(--ease);
+/* Opening a circuit from its page: the last circuit's name stays hidden until the new one is in. */
+.opening #name {
+  visibility: hidden;
 }
-.playbar.show {
-  opacity: 1;
-  transform: none;
-}
-.playbar:not(.show) {
-  pointer-events: none;
-}
-.playbar b {
-  font-weight: 500;
-}
-.playbar .pb-t {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.playbar .btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.playbar .grow {
-  flex: 1;
-}
-.desk.playing .toast {
-  top: 56px;
+
+/* A pin that's on when low (Q1 with a bar): the bar over the whole name, as datasheets draw it. */
+.bar {
+  display: inline-block;
+  line-height: 1;
+  padding-top: 1px;
+  border-top: 1px solid currentColor;
 }

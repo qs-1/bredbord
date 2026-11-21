@@ -274,6 +274,9 @@ const ARROWS: Record<string, Arrow | undefined> = {
 const round1 = (v: number): number => Math.round(v * 10) / 10;
 const round2 = (v: number): number => Math.round(v * 100) / 100;
 const desk = (v: THREE.Vector3): DeskPoint => ({ x: round1(v.x), z: round1(v.z) });
+/** The keys that work on a circuit played on its page: the view, power, pause and step. */
+const PLAY_KEYS = new Set([' ', 'p', 'k', '.', 't', 'home']);
+
 /** How near (mm) a click has to land to a DIP switch's slider slot to flip it rather than select the switch. */
 const DIP_SLOT_REACH = 2.4;
 
@@ -483,6 +486,11 @@ export class Tools {
   magnifier = true;
   /** Whether the last press was a finger rather than a mouse or pen. */
   touching = false;
+  /**
+   * Run only: a circuit played on its own page. Power, buttons, switches, knobs and the view all work;
+   * nothing can be picked, moved, wired, deleted or added.
+   */
+  playOnly = false;
 
   constructor(
     private readonly view: View,
@@ -1234,8 +1242,10 @@ export class Tools {
       merged = mergeInto(doc, from, dx, dz);
     });
     this.setMode('select');
-    const first = (merged as Merged | null)?.boards[0];
-    this.selection = first ? { kind: 'board', id: first } : null;
+    // Every board that came in is selected, so the whole circuit can be dragged into place at once.
+    const doc = this.store.doc;
+    const units = [...new Set(((merged as Merged | null)?.boards ?? []).map((id) => unitOf(doc, id)))];
+    this.setGroup(units.map((id) => ({ kind: 'board', id })));
     this.view.fit(this.sync.boardsBox());
     this.refresh();
   }
@@ -1516,7 +1526,7 @@ export class Tools {
   private aimLoupe(e: PointerEvent): void {
     const kind = this.gesture?.kind;
     const aiming =
-      this.mode !== 'select' ||
+      (kind !== 'pan' && this.mode !== 'select') ||
       !!this.pasting ||
       kind === 'drag' ||
       kind === 'span' ||
@@ -1678,6 +1688,15 @@ export class Tools {
       this.gesture = gesture;
       this.canvas.setPointerCapture(e.pointerId);
     };
+    if (this.mode === 'place' && e.pointerType === 'touch') {
+      // A finger that comes down away from the board's holes moves the view instead of aiming the part.
+      this.track(e);
+      this.refresh();
+      if (!this.hover) {
+        const at = { x: e.clientX, y: e.clientY };
+        return capture({ kind: 'pan', ...at, last: at, active: false });
+      }
+    }
     if (this.mode === 'place' && bendable(this.placing)) {
       this.track(e);
       this.refresh();
@@ -1698,10 +1717,10 @@ export class Tools {
     this.track(e);
     this.refresh();
     const at = { x: e.clientX, y: e.clientY };
-    const handle = this.handleUnderPointer();
+    const handle = this.playOnly ? null : this.handleUnderPointer();
     if (handle)
       return capture({ kind: 'bend', wire: handle.wire, index: handle.index, pull: handle.mid, moved: false });
-    const leg = this.legUnderPointer();
+    const leg = this.playOnly ? null : this.legUnderPointer();
     if (leg) {
       return capture({
         kind: 'press',
@@ -1719,8 +1738,8 @@ export class Tools {
     const unselectedBoard = item?.kind === 'board' && !selectedBoard;
     // Shift, or Ctrl (Cmd), adds to what's selected: a click toggles one thing in or out, a drag boxes more.
     const adding = e.shiftKey || e.ctrlKey || e.metaKey || this.multiSelect;
-    if (!item || (item.kind === 'board' && (adding || unselectedBoard))) {
-      if (!adding) return capture({ kind: 'pan', ...at, last: at, active: false });
+    if (!item || (item.kind === 'board' && (adding || unselectedBoard || this.playOnly))) {
+      if (!adding || this.playOnly) return capture({ kind: 'pan', ...at, last: at, active: false });
       return capture({ kind: 'box', ...at, add: adding, active: false });
     }
     // A finger only moves what's already selected: on anything else a drag moves the view and a tap
@@ -1731,7 +1750,7 @@ export class Tools {
       const control =
         !!this.benchTerminal() ||
         (item.kind === 'supply' ? !!item.knob : item.kind === 'meter' ? !!item.dial || !!item.button : !!item.control);
-      if (fingerLooking && !control) return capture({ kind: 'pan', ...at, last: at, active: false });
+      if ((fingerLooking || this.playOnly) && !control) return capture({ kind: 'pan', ...at, last: at, active: false });
       return this.pressInstrument(item, e, capture);
     }
     const def = item.kind === 'part' ? this.fit.partDef(item.id) : undefined;
@@ -1749,7 +1768,8 @@ export class Tools {
     if (def?.kind === 'pot' && this.onPotKnob(item.id)) {
       return capture({ kind: 'knob', ...at, id: item.id, was: this.fit.part(item.id)?.state ?? 500 });
     }
-    if (fingerLooking) return capture({ kind: 'pan', ...at, last: at, active: false });
+    // Played, a drag anywhere else moves the view; a click still flips a switch (see clickSelect).
+    if (fingerLooking || this.playOnly) return capture({ kind: 'pan', ...at, last: at, active: false });
     capture({
       kind: 'press',
       ...at,
@@ -1892,7 +1912,7 @@ export class Tools {
 
   /** Double-click on a wire puts a bend there to drag; on a bend's handle, takes the bend out. */
   private onDoubleClick(e: MouseEvent): void {
-    if (this.mode !== 'select' || e.button !== 0) return;
+    if (this.mode !== 'select' || e.button !== 0 || this.playOnly) return;
     this.track(e);
     this.refresh();
     const handle = this.handleUnderPointer();
@@ -2174,6 +2194,8 @@ export class Tools {
         target.isContentEditable);
     if (typing) return;
     const key = e.key.toLowerCase();
+    // Played: power, pause, step, and the view's keys only.
+    if (this.playOnly && (e.ctrlKey || e.metaKey || e.altKey || !PLAY_KEYS.has(key))) return;
     if (e.ctrlKey || e.metaKey) {
       if (this.onShortcut(key, e.shiftKey)) e.preventDefault();
       return;
@@ -2341,7 +2363,7 @@ export class Tools {
   private clickSelect(shift: boolean): void {
     // A bench instrument's terminal is there to be wired: clicking it picks up the wire tool with
     // the wire already started from it.
-    const terminal = this.benchTerminal();
+    const terminal = this.playOnly ? null : this.benchTerminal();
     if (terminal) {
       this.setMode('wire');
       this.pending = terminal;
@@ -2372,6 +2394,7 @@ export class Tools {
       this.sim.toggleSwitch(item.id, 0);
       return;
     }
+    if (this.playOnly) return;
     if (shift && this.groupable(item)) {
       const target: ItemRef = item.kind === 'board' ? { kind: 'board', id: this.boardClick(item) } : item;
       const now = this.selected.filter((g) => this.groupable(g));

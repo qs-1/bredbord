@@ -42,7 +42,7 @@ import {
   slideLayout,
   type BlockLayout,
 } from './gates';
-import { $, capitalise, download, el, hexDigits, safeFileName, setText } from './dom';
+import { $, barred, capitalise, download, el, hexDigits, safeFileName, setText } from './dom';
 import { syncSelect } from './menus';
 import { icon, paintIcons } from './px';
 import { meterRef, nextRef, partRef, scopeRef, supplyRef, wireRef } from './refs';
@@ -1123,11 +1123,11 @@ function pinList(
     lv.hidden = true;
     // Numbers in a column with two-digit ones get a leading 0, so the names line up.
     const wide = side === 'r' ? n >= 10 : half >= 10;
-    const name = el('b', '', names[i]);
+    const name = barred('b', '', names[i]);
     d.append(name, el('i', '', String(i + 1).padStart(wide ? 2 : 1, '0')), lv);
     // The full name as a tooltip, only when it's cut short; otherwise it would just repeat the row.
     d.addEventListener('pointerenter', () => {
-      if (name.scrollWidth > name.clientWidth) d.title = names[i];
+      if (name.scrollWidth > name.clientWidth) d.title = names[i].replace(/̄/g, '');
       else d.removeAttribute('title');
     });
     d.style.gridRow = String(row + 1);

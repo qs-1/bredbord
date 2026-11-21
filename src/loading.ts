@@ -148,13 +148,19 @@ export async function whileBusy(over: HTMLElement, words: string, work: () => vo
   }
 }
 
-export function startLoading(): Loading {
-  const boot = document.getElementById('boot')!;
-  // The bars and the parts panel are already on the page: show them as they are, with their icons
-  // and the logo, and keep the loader to the desk, the part that's still being built.
+/**
+ * The bars and the parts panel are already on the page: show them as they are, with their icons and
+ * the logo, before anything else (the Android notice included) so no button sits blank.
+ */
+export function paintChrome(): void {
   snapPixels();
   logoSVG(document.getElementById('logo') as unknown as SVGSVGElement);
   paintIcons();
+}
+
+export function startLoading(): Loading {
+  const boot = document.getElementById('boot')!;
+  // Keep the loader to the desk, the part that's still being built.
   boot.classList.add('busy');
   document.getElementById('desk')!.append(boot);
   drawSparks(document.getElementById('boot-sparks') as unknown as SVGSVGElement);

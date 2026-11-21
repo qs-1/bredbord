@@ -67,7 +67,15 @@ export interface Obstacle extends Bounds {
   readonly key: string;
   /** How far (x, z) is outside its outline; 0 inside. */
   distance(x: number, z: number): number;
+  /**
+   * How close a wire's centre comes before it climbs over, if not the usual. A part's thin legs bend
+   * aside, so a wire running beside one doesn't hop over it (and then over the lens above it).
+   */
+  readonly reach?: number;
 }
+
+/** The reach of a thin leg: a wire climbs over it only when it runs nearly through it. */
+export const LEG_REACH = 0.3;
 
 const f2 = (n: number): string => n.toFixed(2);
 
@@ -543,12 +551,13 @@ function blockers(plan: Plan, obstacles: readonly Obstacle[], open: boolean): Ne
   const last = plan.x.length - 1 - (open ? 0 : first);
   const near: { o: Obstacle; points: number[] }[] = [];
   for (const o of obstacles) {
-    if (!overlaps(plan, o, reach)) continue;
+    const r = o.reach ?? reach;
+    if (!overlaps(plan, o, r)) continue;
     const points: number[] = [];
     for (const c of plan.chunks) {
-      if (!overlaps(c, o, reach)) continue;
+      if (!overlaps(c, o, r)) continue;
       for (let i = Math.max(c.from, first); i <= Math.min(c.to, last); i++) {
-        if (points[points.length - 1] !== i && o.distance(plan.x[i], plan.z[i]) < reach) points.push(i);
+        if (points[points.length - 1] !== i && o.distance(plan.x[i], plan.z[i]) < r) points.push(i);
       }
     }
     if (points.length) near.push({ o, points });

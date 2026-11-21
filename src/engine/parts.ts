@@ -753,7 +753,7 @@ export const PART_LIST: readonly PartDef[] = [
     '74LS189',
     'SN74LS189N',
     '64-bit RAM (16 × 4)',
-    ['A0', 'ME', 'WE', 'D1', 'Q̄1', 'D2', 'Q̄2', 'GND', 'Q̄3', 'D3', 'Q̄4', 'D4', 'A3', 'A2', 'A1', 'VCC'],
+    ['A0', 'ME', 'WE', 'D0', 'Q̄0', 'D1', 'Q̄1', 'GND', 'Q̄2', 'D2', 'Q̄3', 'D3', 'A3', 'A2', 'A1', 'VCC'],
     'memory',
   ),
   dip('W65C02S', 'W65C02S6TPG-14', '8-bit microprocessor', CPU_PINS, 'cpu', true),

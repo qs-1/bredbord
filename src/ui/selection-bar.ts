@@ -28,6 +28,11 @@ export class SelectionBar {
     if (!box) return;
     // Rotate does what the tool bar's does, where it can.
     $<HTMLButtonElement>('#sb-rotate').disabled = $<HTMLButtonElement>('#t-rotate').disabled;
+    // On a phone it stays put at the right edge, above the card (styles.css).
+    if (document.documentElement.classList.contains('phone')) {
+      this.bar.style.left = this.bar.style.top = '';
+      return;
+    }
     const desk = $('#desk').getBoundingClientRect();
     const w = this.bar.offsetWidth;
     const h = this.bar.offsetHeight;

@@ -42,7 +42,8 @@ export default defineConfig({
   test: { include: ['tests/**/*.test.ts'] },
   // Changes with every build, so caches of what the 3D models look like (part thumbnails) start afresh.
   define: { __BUILD_ID__: JSON.stringify(Date.now().toString(36)) },
-  // The landing page at /, the workbench at /app/, a shared link's page at /c/<code>, and /privacy.
+  // The landing page at /, the workbench at /app/, a shared link's page at /c/<code>, /privacy, and the
+  // desk on its own at /embed/.
   build: {
     rollupOptions: {
       input: {
@@ -53,6 +54,8 @@ export default defineConfig({
         community: 'community/index.html',
         person: 'u/index.html',
         account: 'account/index.html',
+        // The desk on its own: a circuit played on its page runs in it, in a frame.
+        embed: 'embed/index.html',
       },
     },
   },

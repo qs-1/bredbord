@@ -13,10 +13,11 @@ export function codeFromPath(path: string): string | null {
 }
 
 /**
- * The link code in the desk's address, or null: /app/?play=<code> plays it, /app/?remix=<code> keeps
- * a credited copy (and the older /app/?c=<code> does the same as remix).
+ * The link code in the desk's address, or null: /app/?edit=<code> opens your own shared circuit,
+ * /app/?remix=<code> keeps a credited copy of someone else's (the older /app/?c=<code> does whichever
+ * fits). Playing happens on the circuit's page, /c/<code>.
  */
-export function codeFromSearch(search: string, key: 'play' | 'remix' | 'c' = 'c'): string | null {
+export function codeFromSearch(search: string, key: 'edit' | 'remix' | 'c' = 'c'): string | null {
   const code = new URLSearchParams(search).get(key);
   return code && /^[A-Za-z0-9_-]{4,64}$/.test(code) ? code : null;
 }

@@ -43,9 +43,11 @@ const TAB_EVERY = 41;
 
 const geometries = new Map<string, THREE.BufferGeometry>();
 const materials = new Map<string, THREE.Material[]>();
-const sideMaterial = new THREE.MeshStandardMaterial({ color: 0xdad8d2, roughness: 0.8 });
+// Warm ivory, like a real board's plastic, rather than a cold white that glares under the light.
+const IVORY = 0xfbf5e9;
+const sideMaterial = new THREE.MeshStandardMaterial({ color: 0xd6cfc0, roughness: 0.8 });
 /** The floor of the channel: in shadow on a real board, so a little darker. */
-const floorMaterial = new THREE.MeshStandardMaterial({ color: 0xbebcb5, roughness: 0.9 });
+const floorMaterial = new THREE.MeshStandardMaterial({ color: 0xbbb5a5, roughness: 0.9 });
 
 /** What a block's long edge is: the board's outside (with tabs, notches or neither), a seam, or the channel. */
 type Edge = 'tabs' | 'slots' | 'plain' | 'seam' | 'channel';
@@ -344,7 +346,11 @@ export function boardPiece(spec: BoardSpec, x: number, z: number): Piece {
   }
   let mats = materials.get(spec.type);
   if (!mats) {
-    mats = [new THREE.MeshStandardMaterial({ map: topTexture(spec), roughness: 0.78 }), sideMaterial, floorMaterial];
+    mats = [
+      new THREE.MeshStandardMaterial({ map: topTexture(spec), color: IVORY, roughness: 0.78 }),
+      sideMaterial,
+      floorMaterial,
+    ];
     materials.set(spec.type, mats);
   }
   return { key: `board-${spec.type}`, geometry, material: mats, matrix: new THREE.Matrix4().makeTranslation(x, 0, z) };

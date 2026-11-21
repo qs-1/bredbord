@@ -49,11 +49,15 @@ export class InstanceBatcher {
       mesh.instanceMatrix.needsUpdate = true;
       mesh.computeBoundingSphere();
       const transparent = (Array.isArray(material) ? material : [material]).some((m) => m.transparent);
-      mesh.castShadow = true;
+      const materials = Array.isArray(material) ? material : [material];
+      // A contact shadow is drawn on the board, not cast from it.
+      mesh.castShadow = !materials.some((m) => m.userData.noShadow);
       mesh.receiveShadow = !transparent;
       // Boards go after the parts and wires on them, so the depth test skips what those cover
       // instead of shading it twice; the desk goes after the boards.
       if (list[0].key.startsWith('board-')) mesh.renderOrder = 0.5;
+      // A contact shadow is laid over the board once it's drawn, as it writes no depth of its own.
+      if (!mesh.castShadow) mesh.renderOrder = 1;
       this.group.add(mesh);
       this.meshes.push(mesh);
     }

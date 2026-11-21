@@ -37,7 +37,7 @@ import {
   resistorTexture,
   transistorTexture,
 } from './textures';
-import { boxObstacle, capsuleObstacle, discObstacle, type Obstacle } from './routing';
+import { boxObstacle, capsuleObstacle, discObstacle, LEG_REACH, type Obstacle } from './routing';
 
 type V = THREE.Vector3;
 
@@ -110,6 +110,57 @@ function chipLegs(def: DipDef): THREE.BufferGeometry {
   });
 }
 
+// ---- contact shadows ----
+
+/** How far a contact shadow reaches past what casts it, mm. */
+const CONTACT_REACH = 1.6;
+const contactMaterials = new Map<string, THREE.Material>();
+
+/**
+ * A soft dark patch on the board under something sitting close on it (a chip, a DIP switch): the
+ * light the board gets right beside and under it, which the one shadow-casting light leaves at full
+ * brightness on the side facing it, so a bright line showed between a chip's body and its legs.
+ */
+export function contactShadow(length: number, width: number, matrix: THREE.Matrix4, strength = 0.42): Piece {
+  const size = `${length.toFixed(2)}-${width.toFixed(2)}-${strength}`;
+  let material = contactMaterials.get(size);
+  if (!material) {
+    const PX = 16;
+    const w = Math.ceil((length + 2 * CONTACT_REACH) * PX);
+    const h = Math.ceil((width + 2 * CONTACT_REACH) * PX);
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const g = canvas.getContext('2d')!;
+    g.filter = `blur(${(CONTACT_REACH * PX) / 2.2}px)`;
+    g.fillStyle = '#000';
+    const inset = CONTACT_REACH * PX * 0.75;
+    g.fillRect(inset, inset, w - 2 * inset, h - 2 * inset);
+    const map = new THREE.CanvasTexture(canvas);
+    map.colorSpace = THREE.SRGBColorSpace;
+    material = new THREE.MeshBasicMaterial({
+      map,
+      transparent: true,
+      opacity: strength,
+      depthWrite: false,
+      toneMapped: false,
+    });
+    // Drawn on the board, never into the shadow map.
+    material.userData.noShadow = true;
+    contactMaterials.set(size, material);
+  }
+  return {
+    key: `contact-${size}`,
+    geometry: cached(`contact-${length.toFixed(2)}-${width.toFixed(2)}`, () =>
+      new THREE.PlaneGeometry(length + 2 * CONTACT_REACH, width + 2 * CONTACT_REACH)
+        .rotateX(-Math.PI / 2)
+        .translate(0, 0.05, 0),
+    ),
+    material,
+    matrix,
+  };
+}
+
 function chipPieces(def: DipDef, pins: readonly V[]): Piece[] {
   const { length, width } = chipSize(def);
   const matrix = placement(pins[0], pins[def.pins / 2 - 1], centroid(pins));
@@ -132,6 +183,7 @@ function chipPieces(def: DipDef, pins: readonly V[]): Piece[] {
       matrix,
     },
     { key: `chip-legs-${def.pins}-${def.wide}`, geometry: chipLegs(def), material: tinMaterial, matrix },
+    contactShadow(length, width, matrix),
   ];
 }
 
@@ -1454,6 +1506,7 @@ function switchPieces(n: number, pins: readonly V[], state: number): Piece[] {
     switchDecals.set(n, decal);
   }
   const pieces: Piece[] = [
+    contactShadow(length, width, matrix, 0.3),
     {
       key: `sw-body-${n}`,
       geometry: cached(`sw-body-${n}`, () =>
@@ -1785,9 +1838,10 @@ export function buildPart(def: PartDef, pins: readonly V[], options: PartOptions
 function legObstacles(pins: readonly V[], top: number, radius: number): Obstacle[] {
   const mid = midpoint(pins[0], pins[1]);
   const span = legSpan(pins);
-  return [pins[0], pins[1]].map((p) =>
-    capsuleObstacle(p, span > PITCH + 0.01 ? mid.clone().lerp(p, PITCH / span) : p, radius, top),
-  );
+  return [pins[0], pins[1]].map((p) => {
+    const leg = capsuleObstacle(p, span > PITCH + 0.01 ? mid.clone().lerp(p, PITCH / span) : p, radius, top);
+    return { ...leg, reach: LEG_REACH, key: `${leg.key}|leg` };
+  });
 }
 
 /** An axial part lying on its legs: the legs run out to their holes at the height of its body. */

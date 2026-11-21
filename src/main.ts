@@ -1,6 +1,6 @@
 import './styles.css';
 import { loadFonts } from './fonts';
-import { nextPaint, startLoading, webglAvailable } from './loading';
+import { nextPaint, paintChrome, startLoading, webglAvailable } from './loading';
 
 const TOUCH_OK = 'bredbord.touchOk';
 
@@ -18,6 +18,9 @@ function start(): void {
       // Let the loader's animations reach the screen before building the desk keeps the page busy.
       .then(nextPaint)
       .then(() => import('./boot'))
+      // Opening a circuit from its page: the loader stays until it's in, so the last one doesn't flash first.
+      .then((boot) => boot.ready)
+      .then(() => document.documentElement.classList.remove('opening'))
       .then(
         () => loading.done(),
         (error: unknown) => {
@@ -27,23 +30,37 @@ function start(): void {
       );
 }
 
-let touchOk = false;
-try {
-  touchOk = localStorage.getItem(TOUCH_OK) === '1';
-} catch {
-  // Storage blocked: ask each time.
-}
-if (!onTouch() || touchOk) start();
-else {
-  const ask = document.getElementById('phone')!;
-  ask.classList.add('open');
-  ask.querySelector('button')!.addEventListener('click', () => {
-    try {
-      localStorage.setItem(TOUCH_OK, '1');
-    } catch {
-      // Not remembered, then.
-    }
-    ask.classList.remove('open');
-    start();
-  });
+// Play runs on the circuit's own page now; an old /app/?play=<code> link goes there.
+const played = new URLSearchParams(location.search).get('play');
+if (played && /^[A-Za-z0-9_-]{4,64}$/.test(played)) location.replace(`/c/${played}`);
+else begin();
+
+function begin(): void {
+  // Opening a circuit from its page: the last one's name mustn't show while it comes in.
+  if (/[?&](edit|remix|c)=/.test(location.search)) document.documentElement.classList.add('opening');
+  paintChrome();
+
+  let touchOk = false;
+  try {
+    touchOk = localStorage.getItem(TOUCH_OK) === '1';
+  } catch {
+    // Storage blocked: ask each time.
+  }
+  // On an Android phone or tablet, once: point to the app. Anywhere else, straight in.
+  if (!onTouch() || !/Android/i.test(navigator.userAgent) || touchOk) start();
+  else {
+    const ask = document.getElementById('phone')!;
+    ask.classList.add('open');
+    const go = (): void => {
+      try {
+        localStorage.setItem(TOUCH_OK, '1');
+      } catch {
+        // Not remembered, then.
+      }
+      ask.classList.remove('open');
+      start();
+    };
+    // Getting the app opens its page in a new tab; the website carries on loading here behind it.
+    ask.querySelectorAll('[data-phone]').forEach((b) => b.addEventListener('click', go));
+  }
 }
