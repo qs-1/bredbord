@@ -641,9 +641,10 @@ export class UI {
       px;
   }
 
-  /** Graphics: High draws smooth wires, Low simpler ones for older computers. */
+  /** Graphics: High draws smooth wires and edges; Low simpler wires, fewer pixels and (from the next load) no edge smoothing. */
   private setGraphics(g: 'high' | 'low', save = true): void {
     this.sync.wires.setQuality(g === 'low' ? 'fast' : 'smooth');
+    this.view.setLow(g === 'low');
     document.querySelectorAll<HTMLButtonElement>('[data-gfx]').forEach((b) => {
       const on = b.dataset.gfx === g;
       b.classList.toggle('on', on);

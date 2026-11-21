@@ -197,6 +197,7 @@ async function start(): Promise<void> {
         tools.magnifier = m.magnifier;
         tools.pinNames = m.pinNames;
         sync.wires.setQuality(m.graphics === 'low' ? 'fast' : 'smooth');
+        view.setLow(m.graphics === 'low');
         view.invalidateShadows();
         return;
       case 'option': {

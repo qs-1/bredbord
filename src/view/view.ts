@@ -52,6 +52,8 @@ export interface ViewOptions {
   transparent?: boolean;
   /** Orbit, pan and zoom with the mouse and keyboard. */
   interactive?: boolean;
+  /** Low graphics: no smoothing of edges, and never more than one pixel drawn per screen pixel. */
+  low?: boolean;
 }
 
 interface Point {
@@ -102,6 +104,8 @@ export class View {
   lowResWhileMoving = false;
   /** Fraction of the full resolution drawn while the camera moves, learnt from how long frames take. */
   private motionScale = 1;
+  /** The most pixels drawn per screen pixel: 2 on High, 1 on Low. */
+  private maxRatio = 2;
   private lastMove = -Infinity;
   private lastFrameAt = 0;
   private timed: number[] = [];
@@ -115,13 +119,15 @@ export class View {
     options: ViewOptions = {},
   ) {
     const transparent = options.transparent ?? false;
+    this.maxRatio = options.low ? 1 : 2;
+    // Smoothing edges can only be chosen when the canvas is first set up: Low drops it from the next load.
     const r = new THREE.WebGLRenderer({
       canvas,
-      antialias: true,
+      antialias: !options.low,
       alpha: transparent,
       powerPreference: 'high-performance',
     });
-    r.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    r.setPixelRatio(Math.min(window.devicePixelRatio, this.maxRatio));
     r.outputColorSpace = THREE.SRGBColorSpace;
     r.toneMapping = THREE.NeutralToneMapping;
     r.shadowMap.enabled = true;
@@ -232,7 +238,21 @@ export class View {
 
   /** The view as it is now, drawn afresh so the canvas can be copied from (for a circuit's picture). */
   snapshot(): HTMLCanvasElement {
+    // Pictures are taken at full detail even on Low graphics, then the view goes back to how it was.
+    const ratio = this.renderer.getPixelRatio();
+    const full = Math.min(window.devicePixelRatio, 2);
+    if (ratio < full) this.renderer.setPixelRatio(full);
     this.draw();
+    if (ratio < full) {
+      // The canvas keeps the full-size drawing until the next frame; copy it before shrinking back.
+      const copy = document.createElement('canvas');
+      copy.width = this.canvas.width;
+      copy.height = this.canvas.height;
+      copy.getContext('2d')!.drawImage(this.canvas, 0, 0);
+      this.renderer.setPixelRatio(ratio);
+      this.invalidate();
+      return copy;
+    }
     return this.canvas;
   }
 
@@ -672,9 +692,16 @@ export class View {
     }
   };
 
+  /** Low graphics draws one pixel per screen pixel at most (a phone's screen has two or three). */
+  setLow(on: boolean): void {
+    this.maxRatio = on ? 1 : 2;
+    if (this.setScale(1)) this.resize();
+    this.invalidate();
+  }
+
   /** Draws at `scale` of the full resolution from now on. Returns whether that changed anything. */
   private setScale(scale: number): boolean {
-    const ratio = Math.min(window.devicePixelRatio, 2) * scale;
+    const ratio = Math.min(window.devicePixelRatio, this.maxRatio) * scale;
     if (Math.abs(this.renderer.getPixelRatio() - ratio) < 1e-3) return false;
     this.renderer.setPixelRatio(ratio);
     return true;
