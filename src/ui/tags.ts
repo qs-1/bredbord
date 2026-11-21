@@ -4,6 +4,7 @@
 
 import * as THREE from 'three';
 import type { View } from '../view/view';
+import { setBarred } from './dom';
 
 /** A label at a point on the desk. Pin names run outward from their pin, along `out`. */
 export interface ScreenTag {
@@ -64,7 +65,10 @@ export class TagLayer {
       el.hidden = false;
       const cls = `tag tag-${tag.kind}`;
       if (el.className !== cls) el.className = cls;
-      if (el.textContent !== tag.text) el.textContent = tag.text;
+      if (el.dataset.text !== tag.text) {
+        el.dataset.text = tag.text;
+        setBarred(el, tag.text);
+      }
       const { x, y } = this.a;
       if (tag.kind !== 'pin' || !tag.out) {
         el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;

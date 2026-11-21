@@ -1160,9 +1160,11 @@ select[data-dd] {
 .pinl.inline .pkg {
   grid-column: 1;
 }
+/* The notch hangs from the inside of the outline's top edge, and covers that edge over its mouth: the
+   edge is drawn a whole screen pixel thick, so pulling the notch up by 1.5px left it standing proud. */
 .pkg .notch {
   position: absolute;
-  top: -1.5px;
+  top: 0;
   left: 50%;
   width: 14px;
   height: 7px;
@@ -1171,6 +1173,15 @@ select[data-dd] {
   border-radius: 0 0 7px 7px;
   background: var(--card, var(--bg));
   transform: translateX(-50%);
+}
+.pkg .notch::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 3px;
+  background: inherit;
 }
 .pinl > div:not(.pkg) {
   display: flex;
@@ -3077,4 +3088,12 @@ select[data-dd] {
 }
 .desk.playing .toast {
   top: 56px;
+}
+
+/* A pin that's on when low (Q1 with a bar): the bar over the whole name, as datasheets draw it. */
+.bar {
+  display: inline-block;
+  line-height: 1;
+  padding-top: 1px;
+  border-top: 1px solid currentColor;
 }

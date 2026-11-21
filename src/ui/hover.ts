@@ -9,7 +9,7 @@ import type { Tools } from '../app/tools/tools';
 import { describePin, describeSwitching } from '../app/tools/describe';
 import { boardSpec } from '../engine/breadboard';
 import { holeKey, sameHole } from '../engine/circuit';
-import { $, el } from './dom';
+import { $, barred, el } from './dom';
 import { partRef, probeRef, wireRef } from './refs';
 
 const DELAY_MS = 300;
@@ -92,12 +92,12 @@ export class HoverCard {
     const connected = h.terminal ? [] : this.connected(h);
     if (!h.terminal && !connected.length && !this.sim.result.live) return false;
     const card = el('div');
-    card.append(el('div', 'hn', name));
+    card.append(barred('div', 'hn', name));
     if (!h.terminal) {
       if (connected.length) {
         card.append(el('div', 'hl', 'Connected to'));
         const ul = el('ul');
-        for (const c of connected) ul.append(el('li', '', c));
+        for (const c of connected) ul.append(barred('li', '', c));
         card.append(ul);
       }
     }
