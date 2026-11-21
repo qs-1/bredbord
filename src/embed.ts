@@ -37,6 +37,8 @@ export type ToDesk =
    * the camera is looking at; `current` the view as it is now (a picture the person framed themselves).
    */
   | { type: 'picture'; view?: 'top' | 'current' }
+  /** A choice made in the sheet, from the `options` of the last 'state'. */
+  | { type: 'option'; id: DeskOption['id']; value: string }
   /** The app's settings that the desk carries out. */
   | { type: 'settings'; graphics: 'high' | 'low'; magnifier: boolean; pinNames: boolean };
 
@@ -197,6 +199,16 @@ async function start(): Promise<void> {
         sync.wires.setQuality(m.graphics === 'low' ? 'fast' : 'smooth');
         view.invalidateShadows();
         return;
+      case 'option': {
+        if (m.id === 'color') {
+          const color = LED_COLORS.find((c) => c === m.value);
+          if (color) tools.setLedColor(color);
+          return;
+        }
+        const n = Number(m.value);
+        if (Number.isFinite(n) && n > 0) tools.setValue(n);
+        return;
+      }
       case 'picture': {
         const from = m.view ?? 'top';
         const jpeg = from === 'current' ? view.picture() : view.pictureAbove(sync.boardsBox());
