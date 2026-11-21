@@ -1,7 +1,5 @@
-// Ben Eater's clock module, live on the landing page's board: three 555s (astable, monostable,
-// bistable) picking between a free-running clock and a single step, through a 74LS04, 74LS08 and
-// 74LS32. The real simulator runs it. The knob sets the speed, the slide switch picks auto or manual,
-// and the button steps the clock in manual. Powered from the rails with nothing drawn feeding them.
+// A 555 clock, live on the landing page's board: it blinks an LED, and the knob sets how fast. The
+// real simulator runs it. Powered from the rails with nothing drawn feeding them.
 
 import * as THREE from 'three';
 import { BOARD_HEIGHT as H, boardSpec, RAIL_GRID_ROW, type RailName } from '../engine/breadboard';
@@ -17,7 +15,7 @@ import { Glow, type GlowItem } from '../view/glow';
 import { LED_HEX } from '../view/materials';
 import { WireLayer, type Obstacle } from '../view/wires';
 
-const spec = boardSpec('bb830');
+const spec = boardSpec('bb400');
 const B = 'b1';
 const ref = (hole: string): HoleRef => ({ board: B, hole });
 const top = (col: number): HoleRef[] => ['a', 'b', 'c', 'd', 'e'].map((r) => ref(r + col));
@@ -43,7 +41,7 @@ export function clockDoc(): CircuitDoc {
   const doc: CircuitDoc = {
     version: 1,
     name: 'Clock module',
-    boards: [{ id: B, type: 'bb830', x: 0, z: 0 }],
+    boards: [{ id: B, type: 'bb400', x: 0, z: 0 }],
     wires: [],
     parts: [],
     nextId: 1,
@@ -72,48 +70,18 @@ export function clockDoc(): CircuitDoc {
   // Fed from the rails' first holes, but never drawn: the page powers the board itself.
   part('power', ['T+1', 'T-1', 'B+1', 'B-1'], { state: 1 });
 
-  // The chips, left to right as Ben has them.
-  for (const [def, col] of [
-    ['NE555', 7],
-    ['NE555', 21],
-    ['NE555', 33],
-    ['74LS04', 39],
-    ['74LS08', 47],
-    ['74LS32', 55],
-  ] as const)
-    part(def, dip(def === 'NE555' ? 8 : 14, col));
-
-  // Astable (U1, 7–10). The knob and R2 set its speed; C6 is its timing capacitor.
-  const knob = part('pot', ['b4', 'b3', 'b2'], { value: 1_000_000, state: 550 });
-  toRail('resistor', 'a8', 'T+', 8, 1000); // R1
-  part('resistor', ['d3', 'd8'], { value: 1000 }); // R2, wiper to DIS
-  toRail('cap-ceramic', 'a10', 'T-', 10, 10e-9); // C5
-  part('cap-electrolytic', ['i8', 'i7'], { value: 1e-6 }); // C6
-  part('led-yellow', ['g9', 'g11'], { value: 5 });
-  toRail('resistor', 'j11', 'B-', 11, 220);
-
-  // Monostable (U2, 21–24): the button fires one clean pulse, joining its bottom left (ground) to its bottom right (TRIG).
-  const button = part('button', ['e16', 'e18', 'f16', 'f18']);
-  toRail('resistor', 'j18', 'B+', 18, 1000); // R3, TRIG pull-up
-  toRail('resistor', 'a22', 'T+', 22, 1_000_000); // R4
-  toRail('cap-ceramic', 'a23', 'T-', 23, 100e-9); // C3
-  toRail('cap-ceramic', 'a24', 'T-', 24, 10e-9); // C2
-  part('led-yellow', ['g23', 'g25'], { value: 5 });
-  toRail('resistor', 'j25', 'B-', 25, 220);
-
-  // Bistable (U3, 33–36): the slide switch sets or resets it, without bounce.
-  const slide = part('slide-switch', ['c27', 'c28', 'c29'], { state: 0 });
-  toRail('resistor', 'a27', 'T+', 27, 1000); // R5
-  toRail('resistor', 'a29', 'T+', 29, 1000); // R6
-  toRail('cap-ceramic', 'a36', 'T-', 36, 10e-9); // C4
-  part('led-yellow', ['g35', 'g37'], { value: 5 });
-  toRail('resistor', 'j37', 'B-', 37, 220);
-
-  // The clock out, in blue, at the top right.
-  part('led-blue', ['b53', 'b54'], { value: 5 });
-  toRail('resistor', 'a54', 'T-', 54, 220);
+  // A 555 running free in the middle of the board, blinking an LED; the knob sets how fast. Kept small,
+  // so the page loads and turns quickly on a phone.
+  part('NE555', dip(8, 13));
+  const knob = part('pot', ['b10', 'b9', 'b8'], { value: 1_000_000, state: 550 });
+  toRail('resistor', 'a14', 'T+', 14, 1000); // R1
+  part('resistor', ['d9', 'd14'], { value: 1000 }); // R2, wiper to DIS
+  toRail('cap-ceramic', 'a16', 'T-', 16, 10e-9); // CTRL
+  part('cap-electrolytic', ['i14', 'i13'], { value: 1e-6 }); // timing
+  part('led-yellow', ['g15', 'g17'], { value: 5 });
+  toRail('resistor', 'j17', 'B-', 17, 220);
   // Decoupling across the top rails.
-  for (const col of [14, 30, 46]) part('cap-ceramic', [railAt('T+', col), railAt('T-', col)], { value: 100e-9 });
+  part('cap-ceramic', [railAt('T+', 21), railAt('T-', 21)], { value: 100e-9 });
 
   // Everything else is a jumper, laid by the same router as the SAP-1 build. Holes under a part's
   // body can't take a wire.
@@ -124,33 +92,12 @@ export function clockDoc(): CircuitDoc {
   const need = (from: HoleRef[], to: HoleRef[], color: WireColor): void => {
     needs.push({ from: free(from), to: free(to), color });
   };
-  for (const col of [7, 21, 33, 39, 47, 55]) need(top(col), rail('T+'), 'red');
-  for (const col of [7, 21, 33]) need(bottom(col), rail('B-'), 'black');
-  for (const col of [45, 53, 61]) need(bottom(col), rail('B-'), 'black');
-  for (const col of [10, 24]) need(bottom(col), rail('B+'), 'red'); // 555 RESET high
-  need(top(35), rail('T-'), 'black'); // U3 THR
-  need(top(44), rail('T-'), 'black'); // HLT low: run
-  need(bottom(16), rail('B-'), 'black'); // button to ground, on the same side as TRIG
-  need(top(28), rail('T-'), 'black'); // slide common
-  // U1 timing: knob, THR and TRIG.
-  need(top(4), top(9), 'white');
-  need(top(9), bottom(8), 'white');
-  // U2: DIS to THR, button to TRIG.
-  need(top(22), top(23), 'white');
-  need(bottom(18), bottom(22), 'white');
-  // U3: switch to TRIG and RESET.
-  need(top(27), bottom(34), 'blue');
-  need(top(29), bottom(36), 'blue');
-  // The logic.
-  need(bottom(9), bottom(47), 'yellow'); // astable → AND 1A
-  need(bottom(35), bottom(39), 'blue'); // select → NOT 1A
-  need(bottom(39), bottom(48), 'blue'); // select → AND 1B
-  need(bottom(40), bottom(50), 'blue'); // not select → AND 2A
-  need(bottom(23), bottom(51), 'green'); // monostable → AND 2B
-  need(bottom(49), bottom(55), 'orange'); // → OR
-  need(bottom(52), bottom(56), 'orange');
-  need(bottom(57), top(52), 'orange'); // OR → AND 3A
-  need(top(45), top(51), 'orange'); // not HLT → AND 3B
+  need(top(13), rail('T+'), 'red'); // VCC
+  need(bottom(13), rail('B-'), 'black'); // GND
+  need(bottom(16), rail('B+'), 'red'); // RESET high
+  // Timing: the knob, THR and TRIG.
+  need(top(10), top(15), 'white');
+  need(top(15), bottom(14), 'white');
 
   // The router keeps clear of round bodies wider than their legs (an LED's lens, a can), which it
   // otherwise only sees as two leads: they get a box over the rows either side.
@@ -182,7 +129,7 @@ export function clockDoc(): CircuitDoc {
       ...(laid.points.length ? { points: laid.points } : {}),
     }),
   );
-  Object.assign(doc, { controls: { knob, button, slide } });
+  Object.assign(doc, { controls: { knob } });
   return doc;
 }
 
@@ -197,8 +144,9 @@ const obstaclesOf = (p: PartDoc): Obstacle[] =>
 export class Clock {
   readonly group = new THREE.Group();
   private readonly doc = clockDoc();
-  private readonly controls = (this.doc as unknown as { controls: { knob: string; button: string; slide: string } })
-    .controls;
+  private readonly controls = (
+    this.doc as unknown as { controls: Partial<Record<'knob' | 'button' | 'slide', string>> }
+  ).controls;
   private readonly batcher = new InstanceBatcher();
   private readonly wires = new WireLayer();
   private readonly glow = new Glow();
@@ -244,7 +192,7 @@ export class Clock {
   /** Runs the circuit on by a frame's worth of time. A long gap (a hidden tab) is cut short. */
   step(seconds: number): void {
     if (!this.sim.active) return;
-    this.sim.advance(Math.min(0.1, seconds), { deadline: performance.now() + 6 });
+    this.sim.advance(Math.min(0.1, seconds), { deadline: performance.now() + 3 });
     this.sim.frame();
     this.light();
   }
@@ -283,7 +231,9 @@ export class Clock {
     let best: { name: 'knob' | 'button' | 'slide'; d: number } | null = null;
     const v = new THREE.Vector3();
     for (const name of ['knob', 'button', 'slide'] as const) {
-      const p = this.part(this.controls[name]);
+      const id = this.controls[name];
+      if (!id) continue;
+      const p = this.part(id);
       const box = piecesBounds(
         partPieces(PARTS[p.def], p.pins.map(world), { value: p.value, state: p.state }),
       ).expandByScalar(reach);
@@ -297,7 +247,7 @@ export class Clock {
 
   press(down: boolean): void {
     const id = this.controls.button;
-    if (down === this.pressed.has(id)) return;
+    if (!id || down === this.pressed.has(id)) return;
     if (down) this.pressed.add(id);
     else this.pressed.delete(id);
     this.drawParts();
@@ -306,6 +256,7 @@ export class Clock {
   }
 
   toggle(): void {
+    if (!this.controls.slide) return;
     const p = this.part(this.controls.slide);
     p.state = (p.state ?? 0) ^ 1;
     this.drawParts();
@@ -314,10 +265,11 @@ export class Clock {
   }
 
   get knob(): number {
-    return this.part(this.controls.knob).state ?? 500;
+    return this.controls.knob ? (this.part(this.controls.knob).state ?? 500) : 500;
   }
 
   set knob(position: number) {
+    if (!this.controls.knob) return;
     const p = this.part(this.controls.knob);
     const next = Math.round(Math.max(0, Math.min(1000, position)));
     if (next === p.state) return;

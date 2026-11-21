@@ -13,7 +13,7 @@ import { canvasFont, loadFonts } from '../fonts';
 import { Clock } from './clock';
 import { tryButton } from './try';
 
-const spec = boardSpec('bb830');
+const spec = boardSpec('bb400');
 const X0 = -spec.length / 2;
 const X1 = spec.length / 2;
 /** Plain plastic beyond the outer rails, as on a real board. */
@@ -27,8 +27,11 @@ const BOTTOM = 0;
 const CORNER = 1.8;
 const BEVEL = 0.5;
 const CHANNEL = { half: 1.4, depth: 2.4 };
-const PLASTIC = '#efeee9';
-const colX = (col: number): number => -78.74 + (col - 1) * 2.54;
+// The simulator's boards' warm ivory.
+const PLASTIC = '#ebe5d5';
+/** The back keeps its own lighter plastic. */
+const BACK_PLASTIC = '#efeee9';
+const colX = (col: number): number => (col - 1 - (spec.columns - 1) / 2) * 2.54;
 /** Lifted off the floor so it can turn over; the floor only catches its shadow. */
 const LIFT = 12;
 /** Room kept along the bottom of a tall screen for the Try it button, CSS px. */
@@ -172,8 +175,11 @@ function topTexture(maxAniso: number): THREE.CanvasTexture {
   for (const [name, row] of Object.entries(RAIL_GRID_ROW)) {
     const plus = name.endsWith('+');
     g.fillStyle = plus ? '#d9473f' : '#3c6ed6';
-    g.fillText(plus ? '+' : '−', X(colX(1) + 1), Z(gridZ(row)));
-    g.fillText(plus ? '+' : '−', X(colX(spec.columns) - 1), Z(gridZ(row)));
+    // As on the simulator's boards: inside the rails' ends on a long board, out beyond them on a short
+    // one, whose rails run right to its first and last columns.
+    const long = spec.columns > 40;
+    g.fillText(plus ? '+' : '−', X(colX(long ? 1.4 : 0.4)), Z(gridZ(row)));
+    g.fillText(plus ? '+' : '−', X(colX(long ? spec.columns - 0.4 : spec.columns + 0.6)), Z(gridZ(row)));
   }
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
@@ -199,11 +205,13 @@ const PITCH = 2.54;
 const PIXEL = 2.14;
 const BAR = 44 * PITCH + PIXEL;
 const FOOT = { r: 2.6, proud: 0.6 };
+/** The feet sit 11 mm in from each end, whatever the board's length. */
+const FOOT_X = X1 - 11.05;
 const FEET: [number, number][] = [
-  [-71.5, 17.5 + MARGIN],
-  [71.5, 17.5 + MARGIN],
-  [-71.5, -17.5 - MARGIN],
-  [71.5, -17.5 - MARGIN],
+  [-FOOT_X, 17.5 + MARGIN],
+  [FOOT_X, 17.5 + MARGIN],
+  [-FOOT_X, -17.5 - MARGIN],
+  [FOOT_X, -17.5 - MARGIN],
 ];
 
 /**
@@ -214,7 +222,8 @@ let tall = false;
 
 /** How the back is laid out, as you look at it: u across, v up, mm. */
 const BACK = {
-  wide: { scale: 1, logo: 3.2, text: -15.6, type: 3.1 },
+  // The logo spans most of a BB830's length; a shorter board gets it smaller, to fit.
+  wide: { scale: Math.min(1, LX / 170), logo: 3.2, text: -15.6, type: 3.1 },
   tall: { scale: 0.4, logo: 5, text: -5.5, type: 2.5 },
 };
 
@@ -361,8 +370,8 @@ function buildBoard(maxAniso: number): THREE.Group {
     alphaToCoverage: true,
   });
   const side = new THREE.MeshStandardMaterial({ color: PLASTIC, roughness: 0.62 });
-  const satin = new THREE.MeshStandardMaterial({ color: PLASTIC, roughness: 0.46 });
-  const channel = new THREE.MeshStandardMaterial({ color: 0xc9c6bf, roughness: 0.85 });
+  const satin = new THREE.MeshStandardMaterial({ color: BACK_PLASTIC, roughness: 0.46 });
+  const channel = new THREE.MeshStandardMaterial({ color: 0xc6bfaf, roughness: 0.85 });
   const extrude = (shape: THREE.Shape, y0: number, y1: number): THREE.ExtrudeGeometry => {
     const g = new THREE.ExtrudeGeometry(shape, {
       depth: y1 - y0 - 2 * BEVEL,
@@ -460,6 +469,9 @@ function buildBoard(maxAniso: number): THREE.Group {
  * multisampling is sharper than 3× without, and costs about the same.
  */
 const MAX_DPR = 2;
+/** A phone's screen is small and dense: 1.5 with multisampling still looks sharp, at about half the pixels of 2. */
+const MAX_DPR_TOUCH = 1.5;
+const maxDpr = (): number => (matchMedia('(pointer: coarse)').matches ? MAX_DPR_TOUCH : MAX_DPR);
 
 /**
  * Lets the browser handle a click or a key between the long steps of building the scene, so the links
@@ -470,7 +482,7 @@ const breathe = (): Promise<void> => new Promise((done) => setTimeout(done, 0));
 async function main(): Promise<void> {
   await Promise.all([loadFonts(), document.fonts.load('500 30px "Atkinson Hyperlegible Next"')]);
   const canvas = document.querySelector<HTMLCanvasElement>('#board')!;
-  const dpr = Math.min(devicePixelRatio, MAX_DPR);
+  const dpr = Math.min(devicePixelRatio, maxDpr());
   const r = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
   r.setPixelRatio(dpr);
   r.outputColorSpace = THREE.SRGBColorSpace;
@@ -494,9 +506,10 @@ async function main(): Promise<void> {
   key.target.position.set(0, LIFT, 0);
   key.castShadow = true;
   // The shadow is soft anyway, so a small map with a short blur looks the same and redraws far faster.
-  key.shadow.mapSize.set(1024, 1024);
-  key.shadow.radius = 8;
-  key.shadow.blurSamples = 12;
+  // It's redrawn on every frame of the turn, so it's kept cheap.
+  key.shadow.mapSize.set(512, 512);
+  key.shadow.radius = 4;
+  key.shadow.blurSamples = 8;
   Object.assign(key.shadow.camera, { left: -115, right: 115, top: 115, bottom: -115, near: 200, far: 650 });
   key.shadow.bias = -0.0005;
   key.shadow.normalBias = 0.2;
@@ -546,12 +559,12 @@ async function main(): Promise<void> {
     }
     // Read each time: browser zoom changes the pixel ratio, and kept from page load, zooming out drew
     // ever more pixels.
-    r.setPixelRatio(Math.min(devicePixelRatio, MAX_DPR));
+    r.setPixelRatio(Math.min(devicePixelRatio, maxDpr()));
     r.setSize(w, h, false);
     cam.aspect = w / h;
     // Far enough that the board, with room round it, fits both ways.
     const half = THREE.MathUtils.degToRad(cam.fov / 2);
-    const [across, along] = tall ? [LZ * 1.3, LX * 1.24] : [LX * 1.5, LZ * 2.3];
+    const [across, along] = tall ? [LZ * 1.3, LX * 1.24] : [LX * 1.5, LZ * 1.9];
     const byWidth = across / (2 * Math.tan(half) * cam.aspect);
     // On a tall screen the Try it button is pinned along the bottom: the board fits the space above it.
     const reserve = tall ? Math.min(TRY_ROOM, h * 0.2) : 0;
