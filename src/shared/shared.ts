@@ -1,8 +1,10 @@
-// A circuit's page, /c/<code>: its picture, title, maker, description and parts, with Play (on the
-// desk, nothing kept), Remix (a credited copy in My circuits), a like with its count, and copy link.
-// The ⋯ menu at the top right holds Report (and Hide, for the admin), or on your own circuit who can
-// see it and Delete. The desk fetches the circuit again by its code, so nothing large goes through
-// the address.
+// A circuit's page, /c/<code>: its picture, title, maker, description and parts. Play over the picture
+// runs the circuit right there, run only (power, buttons, knobs; nothing can be changed), in the desk
+// on its own (/embed/?play) inside a frame. Below the title: Edit on your own circuit (opens it itself
+// in the simulator) or Remix on someone else's (a credited copy in My circuits), a like with its count,
+// and copy link. The ⋯ menu holds Report (and Hide, for the admin), or on your own circuit who can see
+// it and Delete. The simulator fetches the circuit again by its code, so nothing large goes through the
+// address. How it all fits together: docs/COMMUNITY.md.
 
 import { startSite, button, dialog, fillPicture, h, iconHTML, ago, toast } from '../site/site';
 import { circuitByLink, codeFromPath, linkFor } from '../community/links';
@@ -85,8 +87,7 @@ async function show(): Promise<void> {
   }
   $('parts-box').hidden = list.length === 0;
 
-  $<HTMLAnchorElement>('play').href = `/app/?play=${encodeURIComponent(code)}`;
-  $<HTMLAnchorElement>('remix').href = `/app/?remix=${encodeURIComponent(code)}`;
+  if (c.doc) player(c, title);
   $('copy').addEventListener(
     'click',
     () =>
@@ -96,10 +97,78 @@ async function show(): Promise<void> {
       ),
   );
   likes(c);
-  onAccountChange((a) => moreMenu(c, a));
+  onAccountChange((a) => {
+    if (!a.ready) return;
+    // Your own: Edit, the circuit itself. Someone else's: Remix, a copy of your own.
+    const mine = a.session?.user.id === c.owner;
+    const go = $<HTMLAnchorElement>('go');
+    go.href = `/app/?${mine ? 'edit' : 'remix'}=${encodeURIComponent(code)}`;
+    go.innerHTML = `${iconHTML(mine ? 'edit' : 'remix')}${mine ? 'Edit' : 'Remix'}`;
+    moreMenu(c, a);
+    $('acts').hidden = false;
+  });
   paintIcons();
-  $('acts').hidden = false;
   done();
+}
+
+/** Play: the circuit runs where its picture was, run only, with Power and full screen over it. */
+function player(c: RemoteCircuit, title: string): void {
+  const box = $('pic');
+  const play = $<HTMLButtonElement>('play');
+  play.hidden = false;
+  play.addEventListener('click', () => {
+    play.hidden = true;
+    const frame = document.createElement('iframe');
+    frame.title = `${title}, running`;
+    const send = (m: unknown): void => frame.contentWindow?.postMessage(JSON.stringify(m), location.origin);
+    const wait = h('div', { className: 'pwait', role: 'status' }, 'Starting…');
+    const power = button('', 'pbtn', () => send({ type: 'power' }));
+    power.innerHTML = `${iconHTML('power')}<span>Power</span>`;
+    power.setAttribute('aria-pressed', 'false');
+    const full = button('', 'pbtn ib', () => fullScreen(box));
+    full.innerHTML = iconHTML('fit');
+    full.setAttribute('aria-label', 'Full screen');
+    full.dataset.tip = 'Full screen';
+    const bar = h('div', { className: 'pbar' }, power, h('span', { className: 'grow' }), full);
+    bar.hidden = true;
+    window.addEventListener('message', (e) => {
+      if (e.origin !== location.origin || e.source !== frame.contentWindow) return;
+      let m: { type: string; on?: boolean; text?: string };
+      try {
+        m = JSON.parse(String(e.data)) as typeof m;
+      } catch {
+        return;
+      }
+      if (m.type === 'ready') send({ type: 'load', doc: c.doc });
+      else if (m.type === 'loaded') {
+        wait.remove();
+        bar.hidden = false;
+        box.classList.add('running');
+        frame.focus();
+      } else if (m.type === 'state') {
+        power.classList.toggle('on', !!m.on);
+        power.setAttribute('aria-pressed', String(!!m.on));
+      } else if (m.type === 'toast' && m.text) toast(m.text);
+    });
+    frame.src = '/embed/?play';
+    box.append(frame, bar, wait);
+  });
+}
+
+function fullScreen(box: HTMLElement): void {
+  if (document.fullscreenElement) return void document.exitFullscreen();
+  if (box.classList.contains('full')) return void box.classList.remove('full');
+  const whole = (): void => {
+    box.classList.add('full');
+    const esc = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return;
+      box.classList.remove('full');
+      window.removeEventListener('keydown', esc);
+    };
+    window.addEventListener('keydown', esc);
+  };
+  if (box.requestFullscreen) box.requestFullscreen().catch(whole);
+  else whole();
 }
 
 /** The heart: signed out, it asks to sign in first; the count changes at once and goes back if saving fails. */

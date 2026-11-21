@@ -120,6 +120,121 @@ a {
   opacity: 1;
 }
 
+/* Play: over the picture until pressed, then the circuit itself runs in its place. */
+.playbig {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 22px 0 18px;
+  border: 0;
+  border-radius: 22px;
+  background: var(--ink);
+  color: #fff;
+  font: 500 15px var(--font);
+  cursor: pointer;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+  transition: background-color 0.13s var(--ease);
+}
+.playbig:hover {
+  background: #3a3631;
+}
+.playbig:active {
+  transform: translate(-50%, -50%) scale(0.98);
+}
+.playbig:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+.pic iframe {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  opacity: 0;
+  transition: opacity 0.25s var(--ease);
+}
+.pic.running iframe {
+  opacity: 1;
+}
+.pwait {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  padding: 6px 12px;
+  border-radius: var(--r);
+  background: var(--card);
+  color: var(--ink-2);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.12);
+}
+.pbar {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  z-index: 2;
+  display: flex;
+  gap: 6px;
+  pointer-events: none;
+}
+.pbar > * {
+  pointer-events: auto;
+}
+.pbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  background: var(--card);
+  color: var(--ink);
+  font: 500 14px var(--font);
+  cursor: pointer;
+  transition:
+    background-color 0.15s var(--ease),
+    color 0.15s var(--ease);
+}
+.pbtn.ib {
+  padding: 0;
+}
+.pbtn:hover {
+  background: var(--raised);
+}
+.pbtn.on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+.pbtn:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+/* Full screen: the browser's own, or (where a page can't have it, as on an iPhone) the whole window. */
+.pic:fullscreen,
+.pic.full {
+  aspect-ratio: auto;
+  border: 0;
+  border-radius: 0;
+}
+.pic.full {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+}
+
 h1 {
   margin: 20px 0 2px;
   font-size: 22px;
@@ -152,7 +267,11 @@ h1 {
   width: 30%;
 }
 
+/* Above what follows it: the description rises in with a transform of its own, which would
+   otherwise draw it over the ⋯ menu. */
 .acts {
+  position: relative;
+  z-index: 3;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
