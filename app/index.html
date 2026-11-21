@@ -350,7 +350,10 @@
 
       <main class="work" id="work">
         <script>
-          if (document.documentElement.classList.contains('phone'))
+          if (
+            document.documentElement.classList.contains('phone') ||
+            document.documentElement.classList.contains('panel-closed')
+          )
             document.getElementById('work').classList.add('collapsed');
         </script>
         <div class="deskcol">
