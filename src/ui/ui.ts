@@ -17,11 +17,13 @@ import {
   saveCircuit,
   setCurrent,
   startCircuits,
+  type CircuitInfo,
 } from '../app/circuits';
 import {
   followDesk,
   picturesFrom,
   startSync,
+  syncNow,
   whenDeskUpdated,
   whenOwnerChanges,
   whenSyncFails,
@@ -852,8 +854,14 @@ export class UI {
   }
 
   /** Your own shared circuit: the one in My circuits, brought into this browser first if it isn't here yet. */
-  private openOwn(c: RemoteCircuit, uid: string): void {
-    let here = allCircuits().find((x) => x.owner === uid && x.remote?.id === c.id);
+  private async openOwn(c: RemoteCircuit, uid: string): Promise<void> {
+    const find = (): CircuitInfo | undefined => allCircuits().find((x) => x.owner === uid && x.remote?.id === c.id);
+    let here = find();
+    // The account's circuits may be coming down right now: wait for them, rather than make a second copy.
+    if (!here) {
+      await syncNow().catch(() => undefined);
+      here = find();
+    }
     if (!here) {
       const read = readDoc(c.doc);
       if ('error' in read) return this.toast(`Couldn’t open that circuit (${read.error})`, 6000);

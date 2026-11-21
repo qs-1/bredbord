@@ -3104,6 +3104,11 @@ a.primary {
   }
 }
 
+/* Opening a circuit from its page: the last circuit's name stays hidden until the new one is in. */
+.opening #name {
+  visibility: hidden;
+}
+
 /* A pin that's on when low (Q1 with a bar): the bar over the whole name, as datasheets draw it. */
 .bar {
   display: inline-block;

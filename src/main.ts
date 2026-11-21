@@ -20,6 +20,7 @@ function start(): void {
       .then(() => import('./boot'))
       // Opening a circuit from its page: the loader stays until it's in, so the last one doesn't flash first.
       .then((boot) => boot.ready)
+      .then(() => document.documentElement.classList.remove('opening'))
       .then(
         () => loading.done(),
         (error: unknown) => {
@@ -35,6 +36,8 @@ if (played && /^[A-Za-z0-9_-]{4,64}$/.test(played)) location.replace(`/c/${playe
 else begin();
 
 function begin(): void {
+  // Opening a circuit from its page: the last one's name mustn't show while it comes in.
+  if (/[?&](edit|remix|c)=/.test(location.search)) document.documentElement.classList.add('opening');
   paintChrome();
 
   let touchOk = false;
