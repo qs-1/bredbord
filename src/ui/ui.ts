@@ -336,6 +336,19 @@ export class UI {
         else this.saveToFile();
       }),
     );
+    // A saved circuit dropped on the page opens as a new circuit, like File > Open; nothing is replaced.
+    const hasFiles = (e: DragEvent): boolean => !!e.dataTransfer?.types.includes('Files');
+    window.addEventListener('dragover', (e) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      e.dataTransfer!.dropEffect = 'copy';
+    });
+    window.addEventListener('drop', (e) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      const file = e.dataTransfer!.files[0];
+      if (file) this.openFile(file);
+    });
     const picker = $<HTMLInputElement>('#import-file');
     picker.addEventListener('change', () => {
       const file = picker.files?.[0];
