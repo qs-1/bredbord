@@ -262,11 +262,12 @@ function follow(a: Account): void {
   // Until a name is picked nothing is the account's yet.
   const who = uid && a.profile ? uid : null;
   if (who !== shownFor) {
-    const first = shownFor === undefined;
     shownFor = who;
     if (who) adopt(who);
     setOwner(who);
-    if (!first || who) onOwnerChange(who);
+    // Every time, the first too: signed out on another page (or the sign-in ran out) while this
+    // browser's last circuit was the account's, the desk must move to this browser's own.
+    onOwnerChange(who);
   }
   if (who) void syncNow();
 }

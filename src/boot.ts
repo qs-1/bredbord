@@ -19,6 +19,9 @@ const tools = new Tools(view, store, sync, sim, canvas);
 const ui = new UI(store, tools, view, sync, sim);
 view.fit(sync.boardsBox(), false);
 
+/** Settles once a circuit asked for in the address is on the desk (straight away when none is). */
+export const ready = ui.opened;
+
 // Handy from the browser console while developing.
 Object.assign(window, {
   bb: { view, store, sync, sim, tools, ui, stress: () => runStressTest(store, sync, view), benchDoc },

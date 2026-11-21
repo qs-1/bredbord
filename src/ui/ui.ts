@@ -6,8 +6,10 @@
 import { EXAMPLES } from '../app/example';
 import {
   addCircuit,
+  allCircuits,
   changeCircuit,
   currentId,
+  fromAccount,
   getCircuit,
   isEmpty,
   listCircuits,
@@ -35,7 +37,18 @@ import { codeFromSearch } from '../community/links';
 import { PARTS } from '../engine/parts';
 import type { View } from '../view/view';
 import { AccountUI } from './account-ui';
-import { getAccount } from '../community/account';
+import { getAccount, onAccountChange, type Account } from '../community/account';
+import type { RemoteCircuit } from '../community/supabase';
+
+/** The account once the saved sign-in has been read. */
+const accountReady = (): Promise<Account> =>
+  new Promise((done) => {
+    const off = onAccountChange((a) => {
+      if (!a.ready) return;
+      queueMicrotask(() => off());
+      done(a);
+    });
+  });
 import { CodePanel } from './codepanel';
 import { Dock } from './dock';
 import { whileBusy } from '../loading';
@@ -178,10 +191,13 @@ export class UI {
       );
     if (location.hash.includes('debug')) this.startPerfReadout();
     this.startCircuits();
-    const play = codeFromSearch(location.search, 'play');
-    const remix = codeFromSearch(location.search, 'remix') ?? codeFromSearch(location.search, 'c');
-    if (play) void this.openShared(play, 'play');
-    else if (remix) void this.openShared(remix, 'remix');
+    const code =
+      codeFromSearch(location.search, 'edit') ??
+      codeFromSearch(location.search, 'remix') ??
+      codeFromSearch(location.search, 'c');
+    this.opened = code
+      ? Promise.race([this.openShared(code).catch(() => undefined), new Promise<void>((r) => setTimeout(r, 15000))])
+      : Promise.resolve();
   }
 
   // ---- My circuits: the desk's circuit is one of a list, kept in the account when signed in ----
@@ -206,10 +222,9 @@ export class UI {
     followDesk(() => currentId());
     // Always from straight above with the boards framed, never whatever the view happens to be.
     picturesFrom((id) =>
-      id === currentId() && !this.playing && this.hasSomething() ? this.view.pictureAbove(this.sync.boardsBox()) : null,
+      id === currentId() && this.hasSomething() ? this.view.pictureAbove(this.sync.boardsBox()) : null,
     );
     whenDeskUpdated((id) => {
-      if (this.playing) return;
       const doc = readCircuit(id);
       if (!doc) return;
       // Changed here and not kept yet: this browser's edit is the newest, so it stays and goes up.
@@ -218,7 +233,6 @@ export class UI {
       void this.swapIn(doc).then(() => this.toast('Updated with the newer version from your account'));
     });
     whenOwnerChanges((uid) => {
-      if (this.playing) return;
       this.keepDesk();
       const cur = getCircuit(currentId() ?? '');
       if (cur && cur.owner === uid) return;
@@ -233,8 +247,6 @@ export class UI {
   /** Keeps the desk's circuit in the list if it changed since it was last kept. */
   private keepDesk(): void {
     window.clearTimeout(this.keepTimer);
-    // A circuit being played isn't kept; the one underneath stays as it was.
-    if (this.playing) return;
     const id = currentId();
     const json = JSON.stringify(this.store.doc);
     if (!id || json === this.keptJson) return;
@@ -246,7 +258,6 @@ export class UI {
     this.keepDesk();
     const doc = readCircuit(id);
     if (!doc) return this.toast('Couldn’t open that circuit');
-    this.leavePlay();
     setCurrent(id);
     this.keptJson = JSON.stringify(doc);
     void this.swapIn(doc);
@@ -258,9 +269,8 @@ export class UI {
    */
   private placeNew(doc: CircuitDoc): Promise<void> {
     this.keepDesk();
-    const playing = !!this.playing;
     const cur = currentId();
-    if (cur && getCircuit(cur) && !playing && !this.hasSomething()) {
+    if (cur && getCircuit(cur) && !this.hasSomething()) {
       if (!saveCircuit(cur, doc)) {
         this.toast('Couldn’t keep it in this browser: its storage is full or blocked');
         return Promise.resolve();
@@ -273,7 +283,6 @@ export class UI {
       }
       setCurrent(info.id);
     }
-    this.leavePlay();
     this.keptJson = JSON.stringify(doc);
     return this.swapIn(doc);
   }
@@ -795,21 +804,21 @@ export class UI {
     );
   }
 
-  // ---- shared links ----
+  // ---- shared links: Edit (your own) and Remix (someone else's) from a circuit's page ----
 
-  /** The shared circuit being played (not kept), or null. */
-  private playing: { id: string; title: string; by: string } | null = null;
-  private playBar: HTMLDivElement | null = null;
+  /** Settles once a circuit asked for in the address (if any) is on the desk, so the loader can go. */
+  readonly opened: Promise<void>;
 
   /**
-   * Opens a shared circuit from its page. `play` (/app/?play=<code>) puts it on the desk without
-   * keeping it: autosave holds off, My circuits doesn't change, and closing it brings back the circuit
-   * that was there. `remix` (/app/?remix=<code>) keeps a copy in My circuits, credited to the original.
+   * Opens a shared circuit from its page (/app/?edit=<code> or ?remix=<code>; the older ?c=<code> too).
+   * Your own opens as itself, the one in My circuits, and its changes update the shared one. Someone
+   * else's becomes a credited copy in My circuits. Played circuits never come here: Play runs in the
+   * circuit's page.
    */
-  private async openShared(code: string, mode: 'play' | 'remix'): Promise<void> {
+  private async openShared(code: string): Promise<void> {
     // Take the code off the address, so reloading doesn't open it again over later work.
     const url = new URL(location.href);
-    for (const key of ['c', 'play', 'remix']) url.searchParams.delete(key);
+    for (const key of ['c', 'edit', 'remix']) url.searchParams.delete(key);
     history.replaceState(history.state, '', url);
 
     const { circuitByLink } = await import('../community/links');
@@ -825,29 +834,50 @@ export class UI {
       );
       return;
     }
-    const read = readDoc(result.circuit.doc);
+    const c = result.circuit;
+    const me = (await accountReady()).session?.user.id ?? null;
+    if (me && c.owner === me) return this.openOwn(c, me);
+    const read = readDoc(c.doc);
     if ('error' in read) {
       this.toast(`Couldn’t open that circuit (${read.error})`, 6000);
       return;
     }
-    const c = result.circuit;
     const title = c.title.trim() || 'Untitled circuit';
     const by = c.maker?.username ?? '';
     const doc = { ...read.doc, name: title };
-    const go = (): void => {
-      if (mode === 'play') return void this.play(doc, { id: c.id, title, by });
-      const had = this.hasSomething();
-      void this.remix(doc, c.id).then(() =>
-        this.toast(
-          had
-            ? `Remixed “${title}”${by ? ` by ${by}` : ''}. Your circuit is in My circuits`
-            : `Remixed “${title}”${by ? ` by ${by}` : ''}. It’s in My circuits`,
-          had ? 6000 : 3000,
-        ),
+    const go = (): Promise<void> =>
+      this.remix(doc, c.id).then(() => this.toast(`Remixed “${title}”${by ? ` by ${by}` : ''}. It’s in My circuits`));
+    if (read.notes.length) this.confirmPartial(title, read.notes, () => void go());
+    else await go();
+  }
+
+  /** Your own shared circuit: the one in My circuits, brought into this browser first if it isn't here yet. */
+  private openOwn(c: RemoteCircuit, uid: string): void {
+    let here = allCircuits().find((x) => x.owner === uid && x.remote?.id === c.id);
+    if (!here) {
+      const read = readDoc(c.doc);
+      if ('error' in read) return this.toast(`Couldn’t open that circuit (${read.error})`, 6000);
+      const id = fromAccount(
+        null,
+        {
+          name: c.title,
+          description: c.description,
+          tags: null,
+          visibility: c.visibility === 'private' ? 'me' : c.visibility,
+          remote: { id: c.id, code: c.link_code, owner: uid },
+          picturePath: c.picture_path,
+          remixOf: c.remix_of,
+          parts: c.parts ?? {},
+          synced: c.updated_at,
+          owner: uid,
+          created: new Date(c.created_at).getTime(),
+          changed: new Date(c.updated_at).getTime(),
+        },
+        { ...read.doc, name: c.title },
       );
-    };
-    if (read.notes.length) this.confirmPartial(title, read.notes, go);
-    else go();
+      here = getCircuit(id) ?? undefined;
+    }
+    if (here) this.switchTo(here.id);
   }
 
   /** A credited copy in My circuits. */
@@ -855,73 +885,6 @@ export class UI {
     await this.placeNew(doc);
     const id = currentId();
     if (id) changeCircuit(id, { remixOf: original });
-  }
-
-  private play(doc: CircuitDoc, what: { id: string; title: string; by: string }): void {
-    this.keepDesk();
-    this.playing = what;
-    this.store.holdSaves(true);
-    void this.swapIn(doc);
-    this.showPlayBar();
-  }
-
-  /** Lets go of the circuit being played; `keep` makes it (as it is now) a remix in My circuits. */
-  private stopPlaying(keep: boolean): void {
-    const what = this.playing;
-    if (!what) return;
-    window.clearTimeout(this.keepTimer);
-    this.playing = null;
-    this.playBar?.classList.remove('show');
-    $('#desk').classList.remove('playing');
-    if (keep) {
-      const doc = structuredClone(this.store.doc);
-      // What's on the desk is the played circuit, not the one underneath: don't keep it over that.
-      this.keptJson = JSON.stringify(this.store.doc);
-      this.store.holdSaves(false);
-      void this.remix(doc, what.id).then(() => this.toast(`Remixed “${what.title}”. It’s in My circuits`));
-      return;
-    }
-    const id = currentId();
-    const back = id ? readCircuit(id) : null;
-    this.keptJson = JSON.stringify(back ?? emptyDoc());
-    void this.swapIn(back ?? emptyDoc()).then(() => this.store.holdSaves(false));
-  }
-
-  /** Drops the "playing" state without restoring anything; used when another circuit is about to replace the desk. */
-  private leavePlay(): void {
-    if (!this.playing) return;
-    window.clearTimeout(this.keepTimer);
-    this.playing = null;
-    this.playBar?.classList.remove('show');
-    $('#desk').classList.remove('playing');
-    // Stops keepDesk() from saving the played circuit over the one underneath.
-    this.keptJson = JSON.stringify(this.store.doc);
-    this.store.holdSaves(false);
-  }
-
-  private showPlayBar(): void {
-    const what = this.playing;
-    if (!what) return;
-    if (!this.playBar) {
-      const bar = el('div', 'playbar');
-      bar.setAttribute('role', 'status');
-      const text = el('span', 'pb-t');
-      const keep = el('button', 'btn');
-      keep.innerHTML = `<span class="ic sm" data-ic="remix"></span>Remix to keep it`;
-      keep.addEventListener('click', () => this.stopPlaying(true));
-      const close = el('button', 'btn', 'Close');
-      close.addEventListener('click', () => this.stopPlaying(false));
-      const ic = el('span', 'ic sm');
-      ic.dataset.ic = 'play';
-      bar.append(ic, text, el('span', 'grow'), keep, close);
-      paintIcons(bar);
-      $('#desk').append(bar);
-      this.playBar = bar;
-    }
-    const t = this.playBar.querySelector('.pb-t')!;
-    t.replaceChildren('Playing ', el('b', '', what.title), `${what.by ? ` by ${what.by}` : ''}. Changes aren’t kept.`);
-    $('#desk').classList.add('playing');
-    requestAnimationFrame(() => this.playBar?.classList.add('show'));
   }
 
   private saveToFile(): void {

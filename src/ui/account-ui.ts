@@ -145,7 +145,11 @@ export class AccountUI {
     };
     this.dlg.replaceChildren(
       h('h3', { id: 'acct-t' }, 'Sign out?'),
-      h('p', {}, 'Your circuits stay in your account. Sign in again to get them back here.'),
+      h(
+        'p',
+        {},
+        'Your circuits stay in your account. They leave this browser until you sign in again.',
+      ),
       h(
         'div',
         { className: 'dlg-b' },

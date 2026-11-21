@@ -3104,54 +3104,6 @@ a.primary {
   }
 }
 
-/* ---------- playing a shared circuit: a thin bar over the top of the desk ---------- */
-.playbar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: var(--pw);
-  z-index: 14;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 44px;
-  padding: 0 8px 0 14px;
-  background: var(--card);
-  border-bottom: 1px solid var(--line);
-  opacity: 0;
-  transform: translateY(-6px);
-  transition:
-    opacity 0.16s var(--ease),
-    transform 0.16s var(--ease);
-}
-.playbar.show {
-  opacity: 1;
-  transform: none;
-}
-.playbar:not(.show) {
-  pointer-events: none;
-}
-.playbar b {
-  font-weight: 500;
-}
-.playbar .pb-t {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.playbar .btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.playbar .grow {
-  flex: 1;
-}
-.desk.playing .toast {
-  top: 56px;
-}
-
 /* A pin that's on when low (Q1 with a bar): the bar over the whole name, as datasheets draw it. */
 .bar {
   display: inline-block;
