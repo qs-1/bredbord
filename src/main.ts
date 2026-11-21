@@ -1,6 +1,6 @@
 import './styles.css';
 import { loadFonts } from './fonts';
-import { nextPaint, startLoading, webglAvailable } from './loading';
+import { nextPaint, paintChrome, startLoading, webglAvailable } from './loading';
 
 const TOUCH_OK = 'bredbord.touchOk';
 
@@ -26,6 +26,8 @@ function start(): void {
         },
       );
 }
+
+paintChrome();
 
 let touchOk = false;
 try {
