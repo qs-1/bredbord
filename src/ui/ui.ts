@@ -491,11 +491,12 @@ export class UI {
       fold.addEventListener('pointerup', up);
       fold.addEventListener('pointercancel', up);
     });
-    // The card starts as just its header, out of the desk's way. Its header is the handle: dragged up
-    // it shows as much as it's pulled to, dragged down it shuts again, and from shut a drag down puts
-    // the selection away. A tap opens or shuts it. The state stays as parts are picked one after another.
+    // The card starts open, showing what can be set, as in the phone app. Its header is the handle:
+    // dragged up it shows as much as it's pulled to, dragged down it shuts to its header, and from shut
+    // a drag down puts the selection away. A tap opens or shuts it. The state stays as parts are picked
+    // one after another.
     const card = $('#card');
-    work.dataset.card = 'peek';
+    work.dataset.card = 'open';
     card.addEventListener('pointerdown', (e) => {
       const hd = (e.target as Element).closest<HTMLElement>('.hd');
       if (!hd || (e.target as Element).closest('button, input, select, a')) return;

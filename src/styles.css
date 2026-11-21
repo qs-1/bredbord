@@ -2781,6 +2781,34 @@ a.primary {
 .phone .hint kbd {
   display: none;
 }
+/* As in the phone app: Rotate, Duplicate and Delete in a column at the right edge, just above the
+   card, which then only holds what can be set; the card's own rotate and delete make way. */
+.phone .selbar {
+  left: auto;
+  top: auto;
+  right: 10px;
+  bottom: calc(var(--ch, 0px) + 12px);
+  flex-direction: column;
+  border-radius: var(--r-card);
+}
+.phone .selbar > * + * {
+  border-left: 0;
+  border-top: 1px solid var(--line);
+}
+.phone .selbar > button {
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  justify-content: center;
+  gap: 0;
+  font-size: 0;
+}
+.phone #sb-delete {
+  color: #c8352b;
+}
+.phone .card .hd .ib {
+  display: none;
+}
 .phone .card .hd::before {
   position: absolute;
   left: 50%;
