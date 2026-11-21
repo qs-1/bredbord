@@ -440,13 +440,9 @@ kbd {
 .sub.open > .mi {
   background: var(--raised);
 }
-/* big flyouts (Settings, Shortcuts) line up with the top of the menu they come from */
+/* big flyouts line up with the item that opens them */
 .sub.big {
-  position: static;
-}
-.menu.right .sub.big > .menu {
-  top: -1px;
-  right: calc(100% + 6px);
+  position: relative;
 }
 .mi kbd + .end {
   margin-left: 0;
@@ -570,7 +566,7 @@ kbd {
 
 /* Settings: each setting a labelled row of choices, each choice showing what it looks like */
 .settings {
-  width: 320px;
+  width: 240px;
 }
 .field {
   display: grid;
@@ -612,6 +608,21 @@ kbd {
   display: block;
   font-weight: 500;
   padding: 0 4px;
+}
+.choice[data-gfx] {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+}
+.choice[data-gfx] svg {
+  width: 48px;
+  height: 20px;
+  margin: 0;
+}
+.choice[data-gfx] b {
+  padding: 0;
 }
 .choice span {
   display: block;
