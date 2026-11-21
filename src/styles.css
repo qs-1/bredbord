@@ -2824,12 +2824,31 @@ select[data-dd] {
 .acct-menu {
   min-width: 160px;
 }
+/* Signed in, the picture is the button: no wider slot round it. */
+.acct-b.pic {
+  width: auto;
+  height: auto;
+  border-radius: 6px;
+}
+.acct-b.pic:hover,
+.acct-b.pic[aria-expanded='true'] {
+  background: none;
+}
+.acct-b.pic svg {
+  outline: 1px solid var(--line-2);
+  outline-offset: -1px;
+}
+.acct-b.pic:hover svg,
+.acct-b.pic[aria-expanded='true'] svg {
+  outline: 1.5px solid var(--ink-2);
+  outline-offset: -1.5px;
+}
 .acct-b.pic svg,
 .acct-me svg {
   display: block;
-  width: 32px;
-  height: 24px;
-  border-radius: 4px;
+  width: 36px;
+  height: 27px;
+  border-radius: 6px;
   background: var(--desk);
 }
 .acct-head {
