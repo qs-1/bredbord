@@ -72,16 +72,16 @@ export function clockDoc(): CircuitDoc {
 
   // A 555 running free in the middle of the board, blinking an LED; the knob sets how fast. Kept small,
   // so the page loads and turns quickly on a phone.
-  part('NE555', dip(8, 13));
-  const knob = part('pot', ['b10', 'b9', 'b8'], { value: 1_000_000, state: 550 });
-  toRail('resistor', 'a14', 'T+', 14, 1000); // R1
-  part('resistor', ['d9', 'd14'], { value: 1000 }); // R2, wiper to DIS
-  toRail('cap-ceramic', 'a16', 'T-', 16, 10e-9); // CTRL
-  part('cap-electrolytic', ['i14', 'i13'], { value: 1e-6 }); // timing
-  part('led-yellow', ['g15', 'g17'], { value: 5 });
-  toRail('resistor', 'j17', 'B-', 17, 220);
-  // Decoupling across the top rails.
-  part('cap-ceramic', [railAt('T+', 21), railAt('T-', 21)], { value: 100e-9 });
+  part('NE555', dip(8, 14));
+  const knob = part('pot', ['b11', 'b10', 'b9'], { value: 1_000_000, state: 550 });
+  toRail('resistor', 'a15', 'T+', 15, 1000); // R1
+  part('resistor', ['d10', 'd15'], { value: 1000 }); // R2, wiper to DIS
+  toRail('cap-ceramic', 'a17', 'T-', 17, 10e-9); // CTRL
+  part('cap-electrolytic', ['i15', 'i14'], { value: 1e-6 }); // timing
+  part('led-yellow', ['g16', 'g18'], { value: 5 });
+  toRail('resistor', 'j18', 'B-', 18, 220);
+  // Decoupling across the bottom rails, left of the red reset wire.
+  part('cap-ceramic', [railAt('B+', 14), railAt('B-', 14)], { value: 100e-9 });
 
   // Everything else is a jumper, laid by the same router as the SAP-1 build. Holes under a part's
   // body can't take a wire.
@@ -92,12 +92,12 @@ export function clockDoc(): CircuitDoc {
   const need = (from: HoleRef[], to: HoleRef[], color: WireColor): void => {
     needs.push({ from: free(from), to: free(to), color });
   };
-  need(top(13), rail('T+'), 'red'); // VCC
-  need(bottom(13), rail('B-'), 'black'); // GND
-  need(bottom(16), rail('B+'), 'red'); // RESET high
+  need(top(14), rail('T+'), 'red'); // VCC
+  need(bottom(14), rail('B-'), 'black'); // GND
+  need(bottom(17), rail('B+'), 'red'); // RESET high
   // Timing: the knob, THR and TRIG.
-  need(top(10), top(15), 'white');
-  need(top(15), bottom(14), 'white');
+  need(top(11), top(16), 'white');
+  need(top(16), bottom(15), 'white');
 
   // The router keeps clear of round bodies wider than their legs (an LED's lens, a can), which it
   // otherwise only sees as two leads: they get a box over the rows either side.
