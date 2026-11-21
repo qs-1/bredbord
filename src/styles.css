@@ -2658,10 +2658,26 @@ a.primary {
 .phone .bar2 .grp > * + * {
   border-left: 0;
 }
-/* Each tool stands alone here, so its on and pressed tint gets its own rounded corners. */
+/* As in the phone app: every tool an equal tile across the bar, icon over label, its on and pressed
+   tint rounded on its own. */
+.phone .bar2 > .grp:not(.no-phone) {
+  display: contents;
+}
+.phone .bar2 > .grp > button,
+.phone .bar2 > .grp > .mw {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0 2px;
+}
 .phone .bar2 .grp > button,
 .phone .bar2 .grp > .mw > button {
-  border-radius: var(--r);
+  width: 100%;
+  border-radius: 12px;
+}
+.phone .bar2 .grp > .mw > .wc {
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
 }
 .phone .bar2 .grp > button.w,
 .phone .bar2 .grp > .mw > button.w {
