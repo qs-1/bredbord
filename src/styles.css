@@ -2642,6 +2642,11 @@ select[data-dd] {
 .phone .bar2 .grp > * + * {
   border-left: 0;
 }
+/* Each tool stands alone here, so its on and pressed tint gets its own rounded corners. */
+.phone .bar2 .grp > button,
+.phone .bar2 .grp > .mw > button {
+  border-radius: var(--r);
+}
 .phone .bar2 .grp > button.w,
 .phone .bar2 .grp > .mw > button.w {
   flex-direction: column;
