@@ -224,7 +224,7 @@ let tall = false;
 const BACK = {
   // The logo spans most of a BB830's length; a shorter board gets it smaller, to fit.
   wide: { scale: Math.min(1, LX / 170), logo: 3.2, text: -15.6, type: 3.1 },
-  tall: { scale: 0.4, logo: 5, text: -5.5, type: 2.5 },
+  tall: { scale: 0.36, logo: 5, text: -5.5, type: 2.5 },
 };
 
 /** A place on the back, as you look at it, in the board's x, z. */
