@@ -6,6 +6,10 @@
 //   desk → app   ReactNativeWebView.postMessage(JSON of `FromDesk`)
 //
 // Opened in a browser on its own it loads an example, which is how it's tried out without the app.
+//
+// The website's circuit page (/c/<code>) plays a circuit in it too, as /embed/?play inside a frame:
+// run only (see Tools.playOnly), told what to show the same way, and answering its page in
+// postMessage.
 import './embed.css';
 import { EXAMPLES } from './app/example';
 import { SceneSync } from './app/scene-sync';
@@ -74,7 +78,14 @@ export type FromDesk =
   | { type: 'toast'; text: string };
 
 const host = (window as unknown as { ReactNativeWebView?: { postMessage(data: string): void } }).ReactNativeWebView;
-const post = (message: FromDesk): void => host?.postMessage(JSON.stringify(message));
+/** Played on a circuit's page, in a frame: run only, and the page is who it talks to. */
+const playing = new URLSearchParams(location.search).has('play');
+const framed = !host && window.parent !== window;
+const send = (json: string): void => {
+  if (host) host.postMessage(json);
+  else if (framed) window.parent.postMessage(json, location.origin);
+};
+const post = (message: FromDesk): void => send(JSON.stringify(message));
 
 async function start(): Promise<void> {
   await loadFonts();
@@ -85,8 +96,9 @@ async function start(): Promise<void> {
   const sync = new SceneSync(view, store);
   const sim = new Simulation(store, sync, view);
   const tools = new Tools(view, store, sync, sim, canvas);
-  // Every press here is a finger's, from the first one.
-  tools.touching = true;
+  // In the app every press is a finger's, from the first one. Played on a page, it's whatever it is.
+  if (playing) tools.playOnly = true;
+  else tools.touching = true;
   tools.toast = (text) => post({ type: 'toast', text });
 
   let last = '';
@@ -126,7 +138,7 @@ async function start(): Promise<void> {
     const json = JSON.stringify(message);
     if (json === last) return;
     last = json;
-    host?.postMessage(json);
+    send(json);
   };
   tools.onChange(state);
   view.onCameraChange(state);
@@ -266,9 +278,19 @@ async function start(): Promise<void> {
   };
 
   Object.assign(window, { bredbord: { send: handle }, bb: { view, store, sync, sim, tools } });
+  // The page around a frame can send too, in postMessage.
+  if (framed)
+    window.addEventListener('message', (e) => {
+      if (e.origin !== location.origin || e.source !== window.parent) return;
+      try {
+        handle((typeof e.data === 'string' ? JSON.parse(e.data) : e.data) as ToDesk);
+      } catch {
+        // Not one of ours.
+      }
+    });
   post({ type: 'ready' });
   // On its own in a browser, with no app to send it a circuit: show an example.
-  if (!host) load(await EXAMPLES[0].make());
+  if (!host && !framed) load(await EXAMPLES[0].make());
 }
 
 void start();
