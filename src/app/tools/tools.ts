@@ -1234,8 +1234,10 @@ export class Tools {
       merged = mergeInto(doc, from, dx, dz);
     });
     this.setMode('select');
-    const first = (merged as Merged | null)?.boards[0];
-    this.selection = first ? { kind: 'board', id: first } : null;
+    // Every board that came in is selected, so the whole circuit can be dragged into place at once.
+    const doc = this.store.doc;
+    const units = [...new Set(((merged as Merged | null)?.boards ?? []).map((id) => unitOf(doc, id)))];
+    this.setGroup(units.map((id) => ({ kind: 'board', id })));
     this.view.fit(this.sync.boardsBox());
     this.refresh();
   }
