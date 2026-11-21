@@ -222,8 +222,7 @@ a {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
-/* Full screen: the browser's own, or (where a page can't have it, as on an iPhone) the whole window. */
-.pic:fullscreen,
+/* Full screen: the player fills the whole window, and the page behind it stays still. */
 .pic.full {
   aspect-ratio: auto;
   border: 0;
@@ -233,6 +232,9 @@ a {
   position: fixed;
   inset: 0;
   z-index: 50;
+}
+body.noscroll {
+  overflow: hidden;
 }
 
 h1 {

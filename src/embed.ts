@@ -75,7 +75,9 @@ export type FromDesk =
   | { type: 'bump' }
   /** The picture asked for, with which kind it is. */
   | { type: 'picture'; jpeg: string; view: 'top' | 'current' }
-  | { type: 'toast'; text: string };
+  | { type: 'toast'; text: string }
+  /** Esc pressed in a frame: the page around it may be showing it full window. */
+  | { type: 'escape' };
 
 const host = (window as unknown as { ReactNativeWebView?: { postMessage(data: string): void } }).ReactNativeWebView;
 /** Played on a circuit's page, in a frame: run only, and the page is who it talks to. */
@@ -287,6 +289,10 @@ async function start(): Promise<void> {
       } catch {
         // Not one of ours.
       }
+    });
+  if (framed)
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') post({ type: 'escape' });
     });
   post({ type: 'ready' });
   // On its own in a browser, with no app to send it a circuit: show an example.

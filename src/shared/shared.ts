@@ -149,26 +149,25 @@ function player(c: RemoteCircuit, title: string): void {
         power.classList.toggle('on', !!m.on);
         power.setAttribute('aria-pressed', String(!!m.on));
       } else if (m.type === 'toast' && m.text) toast(m.text);
+      else if (m.type === 'escape' && box.classList.contains('full')) fullScreen(box);
     });
     frame.src = '/embed/?play';
     box.append(frame, bar, wait);
   });
 }
 
+/** The player fills the whole window (not the screen, so the browser stays as it is); again, or Esc, puts it back. */
 function fullScreen(box: HTMLElement): void {
-  if (document.fullscreenElement) return void document.exitFullscreen();
-  if (box.classList.contains('full')) return void box.classList.remove('full');
-  const whole = (): void => {
-    box.classList.add('full');
-    const esc = (e: KeyboardEvent): void => {
-      if (e.key !== 'Escape') return;
-      box.classList.remove('full');
-      window.removeEventListener('keydown', esc);
-    };
-    window.addEventListener('keydown', esc);
+  const on = box.classList.toggle('full');
+  document.body.classList.toggle('noscroll', on);
+  if (!on) return;
+  const esc = (e: KeyboardEvent): void => {
+    if (e.key !== 'Escape' || !box.classList.contains('full')) return;
+    box.classList.remove('full');
+    document.body.classList.remove('noscroll');
+    window.removeEventListener('keydown', esc);
   };
-  if (box.requestFullscreen) box.requestFullscreen().catch(whole);
-  else whole();
+  window.addEventListener('keydown', esc);
 }
 
 /** The heart: signed out, it asks to sign in first; the count changes at once and goes back if saving fails. */
