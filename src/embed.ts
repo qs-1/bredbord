@@ -15,8 +15,9 @@ import { Tools } from './app/tools/tools';
 import type { BoardType } from './engine/breadboard';
 import { emptyDoc, WIRE_COLORS, type CircuitDoc, type WireColor } from './engine/circuit';
 import { readDoc } from './engine/document';
-import { PARTS } from './engine/parts';
-import { LED_COLORS, optionsOf, type DeskOption } from './embed-options';
+import { displayId, PARTS, type LedColor } from './engine/parts';
+import { LED_COLORS, optionsOf, pinsOf, subtitleOf, type DeskOption, type DeskPins } from './embed-options';
+import { partRef } from './ui/refs';
 import { loadFonts } from './fonts';
 import { View } from './view/view';
 
@@ -39,6 +40,8 @@ export type ToDesk =
   | { type: 'picture'; view?: 'top' | 'current' }
   /** A choice made in the sheet, from the `options` of the last 'state'. */
   | { type: 'option'; id: DeskOption['id']; value: string }
+  /** A pin of the selected part tapped in the app's diagram (its index, pin 1 is 0): its hole lights up. null lets go. */
+  | { type: 'pin'; index: number | null }
   /** The app's settings that the desk carries out. */
   | { type: 'settings'; graphics: 'high' | 'low'; magnifier: boolean; pinNames: boolean };
 
@@ -47,8 +50,8 @@ export type FromDesk =
   | { type: 'doc'; doc: CircuitDoc }
   | {
       type: 'state';
-      /** What's selected: its title and reference, or how many things. */
-      selection: { title: string; count: number } | null;
+      /** What's selected: its title, reference ("U3") and a line about it ("Timer"), or how many things. */
+      selection: { title: string; count: number; ref?: string; sub?: string } | null;
       /** What's being put down, in the desk's words ('' when nothing is). */
       task: string;
       wire: boolean;
@@ -59,6 +62,8 @@ export type FromDesk =
       top: boolean;
       /** Settings of the one selected part, to choose from; empty for anything else. */
       options: DeskOption[];
+      /** The one selected part's pins, for a diagram; null for anything else. */
+      pins: DeskPins | null;
     }
   /** A circuit was opened: its document as it now stands (how the app learns an example's parts). */
   | { type: 'loaded'; doc: CircuitDoc }
@@ -101,7 +106,13 @@ async function start(): Promise<void> {
             : '';
     const message: FromDesk = {
       type: 'state',
-      selection: many ? { title, count: many } : null,
+      selection: many
+        ? {
+            title,
+            count: many,
+            ...(many === 1 && part ? { ref: partRef(store.doc, part.id), sub: subtitleOf(PARTS[part.def]) } : {}),
+          }
+        : null,
       task: tools.task.replace(/\bClick\b/g, 'Tap').replace(/\bclick\b/g, 'tap'),
       wire: tools.mode === 'wire',
       color: wire?.color ?? tools.wireColor,
@@ -109,7 +120,8 @@ async function start(): Promise<void> {
       canUndo: tools.canUndo,
       canRedo: store.canRedo,
       top: view.isTopView(),
-      options: many === 1 ? optionsOf(part) : [],
+      options: many === 1 ? optionsOf(part, !!part && sim.isHeld(part.id)) : [],
+      pins: many === 1 && part ? pinsOf(PARTS[part.def]) : null,
     };
     const json = JSON.stringify(message);
     if (json === last) return;
@@ -141,6 +153,41 @@ async function start(): Promise<void> {
     view.fit(sync.boardsBox(), false);
     state();
     post({ type: 'loaded', doc: store.doc });
+  };
+
+  /** A setting chosen in the app's card, for the one selected part. */
+  const applyOption = (id: DeskOption['id'], value: string): void => {
+    const sel = tools.selection;
+    const part = sel?.kind === 'part' ? store.doc.parts.find((p) => p.id === sel.id) : undefined;
+    const def = part && PARTS[part.def];
+    if (!part || !def) return;
+    const n = Number(value);
+    switch (id) {
+      case 'color': {
+        const color = LED_COLORS.find((c) => c === value) as LedColor | undefined;
+        if (!color) return;
+        if (def.kind === 'display') return tools.setDef(displayId(def.common, color));
+        return tools.setLedColor(color);
+      }
+      case 'def':
+        return tools.setDef(value);
+      case 'size':
+      case 'value':
+        if (Number.isFinite(n) && n > 0) tools.setValue(n);
+        return;
+      case 'held':
+        if (value === '1') sim.hold(part.id);
+        else sim.unhold(part.id);
+        // Held isn't kept in the circuit, so nothing else tells the app it changed.
+        return state();
+      case 'switch':
+        if (def.kind === 'dipswitch') sim.toggleSwitch(part.id, n);
+        else if (((part.state ?? 0) & 1) !== n) sim.toggleSwitch(part.id, 0);
+        return;
+      case 'jumper0':
+      case 'jumper1':
+        return sim.setPowerJumper(part.id, id === 'jumper0' ? 0 : 1, n);
+    }
   };
 
   const handle = (m: ToDesk): void => {
@@ -200,14 +247,14 @@ async function start(): Promise<void> {
         view.setLow(m.graphics === 'low');
         view.invalidateShadows();
         return;
-      case 'option': {
-        if (m.id === 'color') {
-          const color = LED_COLORS.find((c) => c === m.value);
-          if (color) tools.setLedColor(color);
-          return;
-        }
-        const n = Number(m.value);
-        if (Number.isFinite(n) && n > 0) tools.setValue(n);
+      case 'option':
+        return applyOption(m.id, m.value);
+      case 'pin': {
+        const sel = tools.selection;
+        tools.pointCardPins(
+          sel?.kind === 'part' && m.index !== null ? sel.id : null,
+          m.index === null ? [] : [m.index],
+        );
         return;
       }
       case 'picture': {
