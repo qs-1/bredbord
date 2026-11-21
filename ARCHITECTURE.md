@@ -17,7 +17,8 @@ simulator runs in Node. Most of the tests in `tests/` use it that way.
 
 The landing page (`index.html`, `src/landing/`) is a separate entry with its own small Three.js
 scene; the simulator itself is `app/index.html`, which `src/main.ts` boots. A third entry,
-`embed/index.html` (`src/embed.ts`), is the desk alone for the phone app (below).
+`embed/index.html` (`src/embed.ts`), is the desk alone: the phone app shows it, and a circuit's
+page plays circuits in it (below).
 
 ## The document
 
@@ -45,7 +46,10 @@ with a note, rather than failing.
   Textures (board print, chip markings, resistor bands) are painted on canvases at startup.
 - Wires (`src/view/wires.ts`, `routing.ts`) lie flat and hop over whatever they cross.
 - The renderer (`src/view/view.ts`) only draws when something has changed, so an idle workbench
-  uses no GPU time.
+  uses no GPU time. Low graphics (a setting, from the next load) draws one pixel per screen pixel
+  with no edge smoothing and simpler wires; pictures of a circuit are still taken at full detail.
+- Chips and DIP switches cast a soft contact shadow (`contactShadow` in `components.ts`): a blurred
+  patch drawn on the board, never into the shadow map.
 
 ## Tools
 
@@ -68,8 +72,13 @@ functions beside it, most of them testable without a browser:
 On a touch screen one finger works like the mouse button. Two fingers move the view instead:
 `View.touchMove` pans, zooms and turns it. While a finger aims at a hole, `View.setLoupe` shows a
 magnified circle of the spot, which the finger itself hides. On phones (`.phone` on `<html>`, set
-before the first paint) the CSS moves the tools to a bottom bar and the parts list and card into
-sheets from the bottom; `src/ui/selection-bar.ts` adds buttons over the selection after a touch.
+before the first paint) the CSS moves the tools to a bottom bar of equal tiles and the parts list
+and card into sheets from the bottom, as the phone app has them; `src/ui/selection-bar.ts` puts
+Rotate, Duplicate and Delete in a column at the right edge after a touch. Placing a part, a finger
+that lands off the holes moves the view. On Android, the first visit offers the app (`src/main.ts`).
+
+`Tools.playOnly` makes the desk run only: power, buttons, switches, knobs and the view work, and
+nothing can be picked, moved, wired or deleted. A circuit's page uses it (see Play below).
 
 ## The simulator
 
@@ -142,8 +151,12 @@ screen, bar and sheet natively, and shows the desk in a WebView: `npm run build:
 `embed/index.html` into one self-contained file, `mobile/assets/desk.html`, with its script, styles
 and fonts inside it. The app and the desk talk in messages, typed in `src/embed.ts`: the app sends
 `ToDesk` (load a document, pick a tool, a wire colour, power on), the desk sends `FromDesk` (its state
-for the bars, the document after each change, notes and problems). So the simulator, the tools and
-the 3D view are the same code on the site and on the phone.
+for the bars, the selected part's settings and pins, the document after each change, notes and
+problems). So the simulator, the tools and the 3D view are the same code on the site and on the
+phone.
+
+The same page, as `/embed/?play` in a frame, is the player on a circuit's page: it runs only
+(`Tools.playOnly`), and talks to the page around it in `postMessage` with the same messages.
 
 The parts list is shared too: `src/ui/catalogue.ts` is the one list of parts and their sections. The
 site's Library builds from it, and `build:desk` writes it into the app as
@@ -165,8 +178,10 @@ a signed-in account in that account, private ones too, so signing in elsewhere b
 changes go up a few seconds after they're made, and the account's copies come down on sign-in and
 when the app returns to the front, newest edit winning. Pictures are JPEGs in a public storage
 bucket, each person writing only their own folder. On the website, a shared circuit open on the desk
-gets the desk's current view as its picture each time a change of it is saved; a shared circuit
-not opened on the desk since keeps whatever picture it had (or the drawing of its biggest part).
+gets a picture from straight above, with its boards framed, each time a change of it is saved
+(`View.pictureAbove`). A picture framed by hand in the app (`picture_custom`) is never replaced; a
+shared circuit not opened on the desk since keeps whatever picture it had (or the drawing of its
+biggest part).
 
 ### On the website
 
@@ -197,18 +212,23 @@ the phone's `mobile/src/community.ts`.
   the desk's styles, so the landing page can use it.
 - **A circuit's page**, `/c/<link code>` (the address the app hands out): picture (or a drawing of
   its biggest part), title, maker (linking to their page), description and parts (pictures and names
-  from `src/ui/part-picture.ts`, which `build:desk` also uses for the app's copy). Play, Remix, a like
-  (signed out, it asks to sign in; the count changes at once and goes back if saving fails) and Copy
-  link. The ⋯ menu at the top right has Report (spam or offensive; needs an account) and, for the
-  admin, Hide; on your own circuit it has who can see it and Delete instead.
-- **Play** goes to `/app/?play=<code>`: the desk fetches the circuit by its code, checks it like a
-  file, and puts it on the desk without keeping it. Autosave holds off (`Store.holdSaves`), My
-  circuits doesn't change, and a bar over the desk says so, with "Remix to keep it" (keeps it as it
-  is now) and Close (brings back the circuit that was there). Reloading also brings that back.
-- **Remix** goes to `/app/?remix=<code>` (the older `/app/?c=<code>` does the same): a copy in My
-  circuits, credited to the original (`remixOf`, saved as `remix_of` and `is_remix`, as the phone
-  does). Both take the code off the address so a reload doesn't open it again. Remixing works
-  signed out; the remix joins the account on sign-in like any other circuit.
+  from `src/ui/part-picture.ts`, which `build:desk` also uses for the app's copy). Edit on your own
+  circuit or Remix on someone else's, a like (signed out, it asks to sign in; the count changes at
+  once and goes back if saving fails) and Copy link. The ⋯ menu has Report (spam or offensive; needs
+  an account) and, for the admin, Hide; on your own circuit it has who can see it and Delete instead.
+- **Play, Edit and Remix** follow one model, written out in `docs/COMMUNITY.md` (as Tinkercad does
+  it): the simulator only ever shows your own circuits.
+  - **Play** (over the picture) runs the circuit right on its page, in the desk on its own
+    (`/embed/?play`) in a frame: Power, and full window (Esc puts it back). Nothing can be changed.
+    Old `/app/?play=<code>` links go to the circuit's page.
+  - **Edit** goes to `/app/?edit=<code>`: your own circuit opens as itself, the one in My circuits
+    (brought into this browser first if it isn't here yet), and its changes update the shared one.
+  - **Remix** goes to `/app/?remix=<code>`: a copy in My circuits, credited to the original
+    (`remixOf`, saved as `remix_of` and `is_remix`, as the phone does). Remixing works signed out;
+    the remix joins the account on sign-in like any other circuit. The older `/app/?c=<code>` edits
+    or remixes, whichever fits.
+  - Opening either way, the loader stays up until the circuit is in (`boot.ready`), so the last
+    circuit doesn't show first, and the code comes off the address so a reload doesn't open it again.
 - **A person's page**: picture, name, when they joined, counts of public circuits, likes and remixes,
   and their public circuits. On your own page a gear leads to Account.
 - **Account**: change name and picture, sign out, delete the account (the `delete-account`
@@ -228,14 +248,15 @@ the phone's `mobile/src/community.ts`.
   this browser's version. Deleting in one place deletes everywhere (deletions made offline wait in a
   queue). Signing in, circuits made while signed out join the account; signing out, the account's
   circuits stay in the browser, out of sight, until it signs in again, and the desk moves to one of
-  the browser's own. Limits from the database are shown as they come.
+  the browser's own (the sign-out box says so first). That's checked from the first load too, so a
+  sign-out on another page still moves the desk. Limits from the database are shown as they come.
 - **Share** (menu, or My circuits): who can open a circuit (Only me, Anyone with the link, Public),
   saved at once, and Copy link. Signed out, it asks to sign in.
 - A circuit that was deleted, hidden or made private looks the same from outside (`circuit_by_link`
   returns nothing for all three), so the page says one plain thing for all of them.
 - **Signing in** is Google only (no email). `src/ui/account-ui.ts` puts a "Sign in" button in the
-  top bar of the desk and of every page (the person's part picture once signed in, the same width so
-  nothing moves) and a dialog with Google's button and, the first time, a name to pick. Signed in,
+  top bar of the desk and of every page (once signed in, the person's part picture is the button
+  itself) and a dialog with Google's button and, the first time, a name to pick. Signed in,
   the picture opens a menu with Profile (in a new tab from the desk) and Sign out.
   `src/community/account.ts` has the same rules as the app's `mobile/src/account.ts`. Sign-in uses
   Google's own button and popup (Google Identity Services); Google's ID token is traded for a Supabase
@@ -248,12 +269,12 @@ the phone's `mobile/src/community.ts`.
   the site works as before and links say shared circuits aren't available; without the Google client
   ID the Sign in button isn't shown.
 
-Not done yet: the site doesn't take circuit pictures (a picture the phone took is kept and shown);
-descriptions and tags can't be edited on the site (ones set on the phone are kept); link previews in
+Not done yet: descriptions and tags can't be edited on the site (ones set on the phone are kept); link previews in
 chats (every link shows the same Bredbord preview, because the pages are static). Changing who can see a circuit or deleting it from its page goes
 straight to the account; a browser with that circuit changed and not yet saved puts its own version
-back (the newest edit wins). The pages have
-had only a quick look in a browser, with no public circuits in the database yet.
+back (the newest edit wins). The app's Play
+still opens someone else's circuit on the workbench, where it can be changed; it should run only, as
+on the website.
 
 ## Tests and CI
 
