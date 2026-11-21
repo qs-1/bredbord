@@ -37,7 +37,7 @@ import {
   resistorTexture,
   transistorTexture,
 } from './textures';
-import { boxObstacle, capsuleObstacle, discObstacle, type Obstacle } from './routing';
+import { boxObstacle, capsuleObstacle, discObstacle, LEG_REACH, type Obstacle } from './routing';
 
 type V = THREE.Vector3;
 
@@ -1785,9 +1785,10 @@ export function buildPart(def: PartDef, pins: readonly V[], options: PartOptions
 function legObstacles(pins: readonly V[], top: number, radius: number): Obstacle[] {
   const mid = midpoint(pins[0], pins[1]);
   const span = legSpan(pins);
-  return [pins[0], pins[1]].map((p) =>
-    capsuleObstacle(p, span > PITCH + 0.01 ? mid.clone().lerp(p, PITCH / span) : p, radius, top),
-  );
+  return [pins[0], pins[1]].map((p) => {
+    const leg = capsuleObstacle(p, span > PITCH + 0.01 ? mid.clone().lerp(p, PITCH / span) : p, radius, top);
+    return { ...leg, reach: LEG_REACH, key: `${leg.key}|leg` };
+  });
 }
 
 /** An axial part lying on its legs: the legs run out to their holes at the height of its body. */
