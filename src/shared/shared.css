@@ -412,3 +412,9 @@ h1 {
   color: var(--ink-3);
   font-size: 13px;
 }
+
+/* The ⋯ menu is as wide as what's in it: one Report needs far less than the simulator's menus. */
+#menu-more {
+  min-width: 0;
+  white-space: nowrap;
+}
