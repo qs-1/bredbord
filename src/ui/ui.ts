@@ -204,7 +204,10 @@ export class UI {
     });
     window.addEventListener('pagehide', () => this.keepDesk());
     followDesk(() => currentId());
-    picturesFrom((id) => (id === currentId() && !this.playing && this.hasSomething() ? this.view.picture() : null));
+    // Always from straight above with the boards framed, never whatever the view happens to be.
+    picturesFrom((id) =>
+      id === currentId() && !this.playing && this.hasSomething() ? this.view.pictureAbove(this.sync.boardsBox()) : null,
+    );
     whenDeskUpdated((id) => {
       if (this.playing) return;
       const doc = readCircuit(id);
@@ -930,7 +933,7 @@ export class UI {
         const go = (): void => {
           if (add) {
             this.tools.addCircuit(read.doc, 'right');
-            this.toast(`Added ${file.name} beside the circuit. Drag its boards where you want them`);
+            this.toast(`Added ${file.name}. Drag it into place`);
           } else void this.placeNew(read.doc).then(() => this.toast(`Opened ${file.name}`));
         };
         if (read.notes.length) this.confirmPartial(file.name, read.notes, go);

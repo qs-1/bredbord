@@ -91,7 +91,7 @@ export async function push(id: string): Promise<void> {
     remote = { id: data.id as string, code: data.link_code as string, owner: me.uid };
     stamp = data.updated_at as string;
   }
-  if (info.visibility !== 'me' && pictured.get(id) !== rev) {
+  if (info.visibility !== 'me' && !info.pictureCustom && pictured.get(id) !== rev) {
     const jpeg = takePicture?.(id);
     if (jpeg) {
       const path = `${me.uid}/${remote.id}.jpg`;
@@ -146,14 +146,15 @@ export const followDesk = (fn: () => string | null): void => void (deskId = fn);
 
 async function pull(uid: string): Promise<void> {
   const sb = await need();
-  const { data, error } = await sb
-    .from('circuits')
-    .select(
-      'id, link_code, title, description, tags, parts, picture_path, visibility, remix_of, is_remix, created_at, updated_at',
-    )
-    .eq('owner', uid);
+  const columns =
+    'id, link_code, title, description, tags, parts, picture_path, visibility, remix_of, is_remix, created_at, updated_at';
+  const withCustom = await sb.from('circuits').select(`${columns}, picture_custom`).eq('owner', uid);
+  // A database without the column yet: every picture counts as the automatic one.
+  const { data, error } = missingPictureCustomColumn(withCustom.error)
+    ? await sb.from('circuits').select(columns).eq('owner', uid)
+    : withCustom;
   if (error) throw new Error(error.message);
-  const rows = data ?? [];
+  const rows = (data ?? []) as Array<Record<string, unknown>>;
   const mine = allCircuits().filter((c) => c.owner === uid);
   const gone = new Set(readGone().map((g) => g.id));
   const online = new Set(rows.map((r) => r.id as string));
@@ -179,6 +180,7 @@ async function pull(uid: string): Promise<void> {
         visibility: fromOnline(r.visibility as string),
         remote: { id: r.id as string, code: r.link_code as string, owner: uid },
         picturePath: (r.picture_path as string | null) ?? null,
+        pictureCustom: r.picture_custom === true,
         remixOf: (r.remix_of as string | null) ?? null,
         parts: (r.parts as Record<string, number>) ?? {},
         synced: r.updated_at as string,
