@@ -1518,7 +1518,7 @@ export class Tools {
   private aimLoupe(e: PointerEvent): void {
     const kind = this.gesture?.kind;
     const aiming =
-      this.mode !== 'select' ||
+      (kind !== 'pan' && this.mode !== 'select') ||
       !!this.pasting ||
       kind === 'drag' ||
       kind === 'span' ||
@@ -1680,6 +1680,15 @@ export class Tools {
       this.gesture = gesture;
       this.canvas.setPointerCapture(e.pointerId);
     };
+    if (this.mode === 'place' && e.pointerType === 'touch') {
+      // A finger that comes down away from the board's holes moves the view instead of aiming the part.
+      this.track(e);
+      this.refresh();
+      if (!this.hover) {
+        const at = { x: e.clientX, y: e.clientY };
+        return capture({ kind: 'pan', ...at, last: at, active: false });
+      }
+    }
     if (this.mode === 'place' && bendable(this.placing)) {
       this.track(e);
       this.refresh();
