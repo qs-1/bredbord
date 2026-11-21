@@ -37,7 +37,8 @@ export const WIRE_HEX: Readonly<Record<WireColor, number>> = {
   blue: 0x2a62cf,
   yellow: 0xe9bd34,
   green: 0x2c9a52,
-  white: 0xe6e6e1,
+  // Whiter than the ivory board, so it shows against it.
+  white: 0xf4f3ef,
   orange: 0xe8772d,
   purple: 0x7a52d1,
 };

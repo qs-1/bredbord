@@ -29,7 +29,7 @@ const SCENE_THEMES: Record<
 > = {
   // Mostly one strong light from above, little fill: shapes get shading and shadows, and lit LEDs
   // and segments stand out against a scene that isn't evenly bright all over.
-  light: { background: 0xe9e7e1, sky: 0xffffff, ground: 0xcfcac0, hemi: 0.3, env: 0.36, key: 1.8 },
+  light: { background: 0xe9e7e1, sky: 0xffffff, ground: 0xcfcac0, hemi: 0.28, env: 0.32, key: 1.6 },
   dark: { background: 0x132a24, sky: 0xeeeeee, ground: 0x12201c, hemi: 0.28, env: 0.34, key: 1.85 },
 };
 
