@@ -52,7 +52,7 @@ export interface ViewOptions {
   transparent?: boolean;
   /** Orbit, pan and zoom with the mouse and keyboard. */
   interactive?: boolean;
-  /** Low graphics: no smoothing of edges, and never more than one pixel drawn per screen pixel. */
+  /** Low graphics: simpler wires and never more than one pixel drawn per screen pixel. */
   low?: boolean;
 }
 
@@ -120,10 +120,11 @@ export class View {
   ) {
     const transparent = options.transparent ?? false;
     this.maxRatio = options.low ? 1 : 2;
-    // Smoothing edges can only be chosen when the canvas is first set up: Low drops it from the next load.
+    // Keep edge smoothing on even when Low was saved. A WebGL context cannot enable it later, so otherwise
+    // switching back to High leaves the editor jagged until the next reload.
     const r = new THREE.WebGLRenderer({
       canvas,
-      antialias: !options.low,
+      antialias: true,
       alpha: transparent,
       powerPreference: 'high-performance',
     });

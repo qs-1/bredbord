@@ -1,6 +1,6 @@
-// The landing page's board, live in 3D: a breadboard the size and shape of a BB830, but made for this
-// page (no joining tabs or notches, softly rounded), its logo standing in a panel sunk into its back. It starts upside
-// down; scrolling turns it over, exactly as far as you've scrolled. Drawn only when something changes.
+// The landing page's board, live in 3D: a 400-hole breadboard made for this page (no joining tabs or
+// notches, softly rounded), with its logo standing in a panel sunk into its back. It starts upside down;
+// scrolling turns it over, exactly as far as you've scrolled. Drawn only when something changes.
 
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
@@ -34,8 +34,6 @@ const BACK_PLASTIC = '#efeee9';
 const colX = (col: number): number => (col - 1 - (spec.columns - 1) / 2) * 2.54;
 /** Lifted off the floor so it can turn over; the floor only catches its shadow. */
 const LIFT = 12;
-/** Room kept along the bottom of a tall screen for the Try it button, CSS px. */
-const TRY_ROOM = 96;
 /** How far the tallest parts on the front stand above it. */
 const PARTS_TALL = 12;
 
@@ -214,37 +212,30 @@ const FEET: [number, number][] = [
   [FOOT_X, -17.5 - MARGIN],
 ];
 
-/**
- * On a tall screen the board stands with its long side up and down, so the logo and the line of type
- * are laid across it instead, smaller, to read upright when it's face down.
- */
-let tall = false;
-
 /** How the back is laid out, as you look at it: u across, v up, mm. */
 const BACK = {
-  // The logo spans most of a BB830's length; a shorter board gets it smaller, to fit.
-  wide: { scale: Math.min(1, LX / 170), logo: 3.2, text: -15.6, type: 3.1 },
-  tall: { scale: 0.36, logo: 5, text: -5.5, type: 2.5 },
+  scale: Math.min(1, LX / 170),
+  logo: 0,
+  text: -12.5,
+  type: 3.1,
 };
 
 /** A place on the back, as you look at it, in the board's x, z. */
-const backAt = (u: number, v: number): [number, number] => (tall ? [-v, u] : [u, v]);
+const backAt = (u: number, v: number): [number, number] => [u, v];
 
 /** What stands on the back's floor: the logo's pixels and its two bars, as rectangles in x, z. */
 function logoBlocks(): { x: number; z: number; wx: number; wz: number }[] {
-  const b = tall ? BACK.tall : BACK.wide;
-  const p = PITCH * b.scale;
+  const p = PITCH * BACK.scale;
   const rect = (u: number, v: number, wu: number, wv: number): { x: number; z: number; wx: number; wz: number } => {
-    const [x, z] = backAt(u, v);
-    return tall ? { x, z, wx: wv, wz: wu } : { x, z, wx: wu, wz: wv };
+    return { x: u, z: v, wx: wu, wz: wv };
   };
   const out: { x: number; z: number; wx: number; wz: number }[] = [];
   LOGO.forEach((row, j) =>
     [...row].forEach((ch, i) => {
-      if (ch === '#') out.push(rect((i - 22) * p, b.logo + (2 - j) * p, PIXEL * b.scale, PIXEL * b.scale));
+      if (ch === '#') out.push(rect((i - 22) * p, BACK.logo + (2 - j) * p, PIXEL * BACK.scale, PIXEL * BACK.scale));
     }),
   );
-  for (const v of [b.logo + 5 * p, b.logo - 5 * p]) out.push(rect(0, v, BAR * b.scale, PIXEL * b.scale));
+  for (const v of [BACK.logo + 5 * p, BACK.logo - 5 * p]) out.push(rect(0, v, BAR * BACK.scale, PIXEL * BACK.scale));
   return out;
 }
 
@@ -296,20 +287,18 @@ function floorTextures(maxAniso: number): { map: THREE.CanvasTexture; normalMap:
   cg.drawImage(wc, 0, 0);
   cg.filter = `blur(${mm(0.45)}px)`;
   cg.globalAlpha = 0.34;
-  // Down and to the right as you look at it, whichever way the board stands.
-  const [sx, sy] = tall ? [0.35, -0.6] : [0.6, 0.35];
+  // Down and to the right as you look at it.
+  const [sx, sy] = [0.6, 0.35];
   cg.drawImage(fc, mm(sx), mm(sy));
   cg.drawImage(wc, mm(sx), mm(sy));
   cg.filter = 'none';
   cg.globalAlpha = 1;
   cg.fillStyle = 'rgba(92, 86, 76, 0.92)';
-  const back = tall ? BACK.tall : BACK.wide;
-  cg.font = `500 ${mm(back.type)}px "Atkinson Hyperlegible Next", sans-serif`;
+  cg.font = `500 ${mm(BACK.type)}px "Atkinson Hyperlegible Next", sans-serif`;
   cg.textAlign = 'center';
   cg.textBaseline = 'middle';
-  const [tx, tz] = backAt(0, back.text);
+  const [tx, tz] = backAt(0, BACK.text);
   cg.translate(px(tx), pz(tz));
-  if (tall) cg.rotate(-Math.PI / 2);
   cg.fillText('A free 3D breadboard simulator', 0, 0);
   cg.setTransform(1, 0, 0, 1, 0, 0);
   const map = new THREE.CanvasTexture(cc);
@@ -524,8 +513,7 @@ async function main(): Promise<void> {
   scene.add(floor);
   await breathe();
 
-  // On a tall screen the whole board is turned a quarter round, its long side up and down; it still
-  // turns over about its own length. The lights stay put, so they still come from the upper left.
+  // Keep the 400-hole board horizontal even on a tall screen. It turns over about its own length.
   const turn = new THREE.Group();
   const holder = new THREE.Group();
   turn.add(holder);
@@ -538,8 +526,7 @@ async function main(): Promise<void> {
   const fit = (): void => {
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
-    if (!board.parent || tall !== w < h) {
-      tall = w < h;
+    if (!board.parent) {
       clock.group.removeFromParent();
       board.removeFromParent();
       board.traverse((o) => {
@@ -555,7 +542,7 @@ async function main(): Promise<void> {
       board.position.y = -(TOP + BOTTOM) / 2; // turn about the board's middle
       board.add(clock.group);
       holder.add(board);
-      turn.rotation.y = tall ? -Math.PI / 2 : 0;
+      turn.rotation.y = 0;
     }
     // Read each time: browser zoom changes the pixel ratio, and kept from page load, zooming out drew
     // ever more pixels.
@@ -564,14 +551,11 @@ async function main(): Promise<void> {
     cam.aspect = w / h;
     // Far enough that the board, with room round it, fits both ways.
     const half = THREE.MathUtils.degToRad(cam.fov / 2);
-    const [across, along] = tall ? [LZ * 1.3, LX * 1.24] : [LX * 1.5, LZ * 1.9];
+    const [across, along] = [LX * 1.5, LZ * 1.9];
     const byWidth = across / (2 * Math.tan(half) * cam.aspect);
-    // On a tall screen the Try it button is pinned along the bottom: the board fits the space above it.
-    const reserve = tall ? Math.min(TRY_ROOM, h * 0.2) : 0;
-    const byHeight = (along / (2 * Math.tan(half))) * (h / (h - reserve));
+    const byHeight = along / (2 * Math.tan(half));
     const dist = Math.max(byWidth, byHeight);
-    // Moving the camera towards the bottom of the screen (+z) lifts the board up out of the button's way.
-    const shift = (reserve / 2) * ((2 * Math.tan(half) * dist) / h);
+    const shift = 0;
     cam.position.set(0, LIFT + dist, shift);
     cam.lookAt(0, LIFT, shift);
     // The depth range hugs the board and the floor under it: a phone may keep depth in 16 bits, and

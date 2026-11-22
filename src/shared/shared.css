@@ -420,3 +420,9 @@ h1 {
   min-width: 0;
   white-space: nowrap;
 }
+@media (min-width: 760px) {
+  #menu-more {
+    left: 0;
+    right: auto;
+  }
+}
